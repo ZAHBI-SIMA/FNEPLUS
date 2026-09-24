@@ -1,0 +1,16 @@
+{
+  "name": "@fneplus/dgi-sim",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Simulateur de l'API FNE de la DGI — permet de développer et d'éprouver le connecteur avant l'accès au bac à sable officiel",
+  "scripts": {
+    "dev": "node --watch src/serveur.mjs",
+    "start": "node src/serveur.mjs",
+    "build": "echo \"pas d'étape de build\"",
+    "test": "node --test src/*.test.mjs",
+    "typecheck": "echo \"JavaScript simple, pas de typecheck\"",
+    "lint": "echo \"lint dgi-sim\""
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,51 @@
+# Environnement de développement local.
+#
+# Ne contient que ce dont le Sprint 1 aura besoin : une base PostgreSQL et un
+# Redis pour la file de transmission DGI. L'application web et le simulateur
+# tournent en dehors de Docker, pour garder le rechargement à chaud rapide.
+#
+# ⚠️ Ces identifiants sont volontairement triviaux : cette pile n'est destinée
+# qu'au poste de développement et ne doit jamais être exposée.
+
+name: fneplus
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fneplus-postgres
+    environment:
+      POSTGRES_USER: fneplus
+      POSTGRES_PASSWORD: fneplus_dev
+      POSTGRES_DB: fneplus
+      # Collation déterministe : les tris et comparaisons doivent donner le même
+      # résultat en développement et en production.
+      POSTGRES_INITDB_ARGS: '--locale-provider=icu --icu-locale=fr-CI --encoding=UTF8'
+    ports:
+      - '5435:5432'
+    volumes:
+      - postgres-donnees:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U fneplus -d fneplus']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: fneplus-redis
+    # `appendonly` : la file de transmission DGI ne doit pas perdre de tâche si
+    # le conteneur redémarre.
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6380:6379'
+    volumes:
+      - redis-donnees:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-donnees:
+  redis-donnees:

@@ -1,0 +1,197 @@
+/** Composants du design system FNE+. Classes globales, préfixées `fne-`. */
+
+/* ---------------- Bouton ---------------- */
+
+.fne-bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--fne-esp-2);
+  min-height: var(--fne-cible-tactile);
+  padding: var(--fne-esp-3) var(--fne-esp-5);
+  border: 2px solid transparent;
+  border-radius: var(--fne-rayon-md);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.fne-bouton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fne-bouton--principal {
+  background: var(--fne-primaire-600);
+  color: var(--fne-texte-inverse);
+}
+
+.fne-bouton--principal:hover:not(:disabled) {
+  background: var(--fne-primaire-700);
+}
+
+.fne-bouton--secondaire {
+  background: var(--fne-surface);
+  color: var(--fne-primaire-600);
+  border-color: var(--fne-bordure);
+}
+
+.fne-bouton--secondaire:hover:not(:disabled) {
+  border-color: var(--fne-primaire-600);
+}
+
+.fne-bouton--discret {
+  background: transparent;
+  color: var(--fne-texte-faible);
+  padding-inline: var(--fne-esp-3);
+}
+
+.fne-bouton--pleine-largeur {
+  width: 100%;
+}
+
+/* ---------------- Carte ---------------- */
+
+.fne-carte {
+  background: var(--fne-surface);
+  border: 1px solid var(--fne-bordure);
+  border-radius: var(--fne-rayon-lg);
+  padding: var(--fne-esp-5);
+  box-shadow: var(--fne-ombre-1);
+}
+
+.fne-carte__titre {
+  margin: 0 0 var(--fne-esp-2);
+  font-size: var(--fne-taille-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fne-texte-faible);
+}
+
+/* ---------------- Badge de statut ---------------- */
+
+.fne-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fne-esp-2);
+  padding: var(--fne-esp-1) var(--fne-esp-3);
+  border-radius: 999px;
+  font-size: var(--fne-taille-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fne-badge__pastille {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.fne-badge--neutre {
+  background: var(--fne-neutre-200);
+  color: var(--fne-neutre-700);
+}
+.fne-badge--info {
+  background: var(--fne-info-100);
+  color: var(--fne-info-600);
+}
+.fne-badge--attente {
+  background: var(--fne-attente-100);
+  color: var(--fne-attente-600);
+}
+.fne-badge--succes {
+  background: var(--fne-succes-100);
+  color: var(--fne-succes-600);
+}
+.fne-badge--erreur {
+  background: var(--fne-erreur-100);
+  color: var(--fne-erreur-600);
+}
+
+/* ---------------- Bandeau d'état réseau ---------------- */
+
+/*
+ * Toujours visible, jamais masqué. L'utilisateur doit pouvoir répondre à tout
+ * moment à la question « est-ce que ma facture est partie ? » sans naviguer.
+ */
+.fne-bandeau-reseau {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fne-esp-3);
+  padding: var(--fne-esp-3) var(--fne-esp-4);
+  font-size: var(--fne-taille-sm);
+  font-weight: 600;
+  border-bottom: 1px solid var(--fne-bordure);
+}
+
+.fne-bandeau-reseau--en-ligne {
+  background: var(--fne-succes-100);
+  color: var(--fne-succes-600);
+}
+.fne-bandeau-reseau--hors-ligne {
+  background: var(--fne-attente-100);
+  color: var(--fne-attente-600);
+}
+.fne-bandeau-reseau--synchro {
+  background: var(--fne-info-100);
+  color: var(--fne-info-600);
+}
+
+/* ---------------- Ligne d'information ---------------- */
+
+.fne-ligne-info {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--fne-esp-4);
+  padding-block: var(--fne-esp-3);
+  border-bottom: 1px solid var(--fne-bordure);
+}
+
+.fne-ligne-info:last-child {
+  border-bottom: none;
+}
+
+.fne-ligne-info__libelle {
+  color: var(--fne-texte-faible);
+  font-size: var(--fne-taille-sm);
+}
+
+.fne-ligne-info__valeur {
+  font-weight: 600;
+  text-align: right;
+}
+
+/* ---------------- Alerte ---------------- */
+
+.fne-alerte {
+  display: flex;
+  gap: var(--fne-esp-3);
+  padding: var(--fne-esp-4);
+  border-radius: var(--fne-rayon-md);
+  border-left: 4px solid;
+  font-size: var(--fne-taille-sm);
+}
+
+.fne-alerte--attente {
+  background: var(--fne-attente-100);
+  border-color: var(--fne-attente-600);
+  color: var(--fne-attente-600);
+}
+.fne-alerte--erreur {
+  background: var(--fne-erreur-100);
+  border-color: var(--fne-erreur-600);
+  color: var(--fne-erreur-600);
+}
+.fne-alerte--info {
+  background: var(--fne-info-100);
+  border-color: var(--fne-info-600);
+  color: var(--fne-info-600);
+}

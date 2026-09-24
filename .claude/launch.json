@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@fneplus/web", "dev"],
+      "port": 3100
+    },
+    {
+      "name": "web-prod",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@fneplus/web", "start"],
+      "port": 3100
+    },
+    {
+      "name": "dgi-sim",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@fneplus/dgi-sim", "dev"],
+      "port": 4010
+    }
+  ]
+}

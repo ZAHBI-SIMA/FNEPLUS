@@ -1,0 +1,141 @@
+/**
+ * FNE+ — jetons de design.
+ *
+ * Contraintes qui ont dicté ces valeurs :
+ *  - écran de smartphone d'entrée de gamme, souvent consulté en plein soleil
+ *    → contrastes élevés, pas de gris clair sur blanc ;
+ *  - usage debout, une main, client qui attend
+ *    → cibles tactiles de 48 px minimum, jamais moins ;
+ *  - forfait data limité
+ *    → aucune police distante, on utilise la pile système.
+ */
+
+:root {
+  /* Couleurs de marque — vert de conformité, orange d'action */
+  --fne-primaire-900: #06301f;
+  --fne-primaire-700: #0a5238;
+  --fne-primaire-600: #0f6e4c;
+  --fne-primaire-100: #d7efe4;
+  --fne-primaire-50: #eff9f4;
+
+  --fne-accent-600: #c94d10;
+  --fne-accent-500: #e8621d;
+  --fne-accent-100: #fde6d8;
+
+  /* Couleurs de statut — reprises telles quelles par l'indicateur de synchronisation */
+  --fne-succes-600: #157347;
+  --fne-succes-100: #d9f2e4;
+  --fne-attente-600: #9a6200;
+  --fne-attente-100: #fdf0d2;
+  --fne-erreur-600: #b3261e;
+  --fne-erreur-100: #fadad8;
+  --fne-info-600: #0b5cad;
+  --fne-info-100: #dbeafe;
+
+  /* Neutres */
+  --fne-neutre-900: #14181a;
+  --fne-neutre-700: #3c464c;
+  --fne-neutre-500: #667079;
+  --fne-neutre-300: #c3cbd1;
+  --fne-neutre-200: #e2e7ea;
+  --fne-neutre-100: #f1f4f6;
+  --fne-neutre-000: #ffffff;
+
+  /* Sémantique de surface */
+  --fne-fond: var(--fne-neutre-100);
+  --fne-surface: var(--fne-neutre-000);
+  --fne-surface-alt: var(--fne-neutre-100);
+  --fne-bordure: var(--fne-neutre-200);
+  --fne-texte: var(--fne-neutre-900);
+  --fne-texte-faible: var(--fne-neutre-500);
+  --fne-texte-inverse: var(--fne-neutre-000);
+
+  /* Typographie — pile système, zéro octet téléchargé */
+  --fne-police: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --fne-police-chiffres: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+
+  --fne-taille-xs: 0.75rem;
+  --fne-taille-sm: 0.875rem;
+  --fne-taille-md: 1rem;
+  --fne-taille-lg: 1.25rem;
+  --fne-taille-xl: 1.5rem;
+  --fne-taille-2xl: 2rem;
+
+  /* Espacements — échelle de 4 px */
+  --fne-esp-1: 0.25rem;
+  --fne-esp-2: 0.5rem;
+  --fne-esp-3: 0.75rem;
+  --fne-esp-4: 1rem;
+  --fne-esp-5: 1.5rem;
+  --fne-esp-6: 2rem;
+  --fne-esp-7: 3rem;
+
+  /* Rayons et ombres */
+  --fne-rayon-sm: 6px;
+  --fne-rayon-md: 12px;
+  --fne-rayon-lg: 20px;
+  --fne-ombre-1: 0 1px 2px rgb(20 24 26 / 8%);
+  --fne-ombre-2: 0 4px 16px rgb(20 24 26 / 12%);
+
+  /* Accessibilité tactile — plancher non négociable */
+  --fne-cible-tactile: 48px;
+
+  /* Largeur de contenu : conçu pour 360 px de large en premier */
+  --fne-largeur-contenu: 560px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --fne-fond: #0d1214;
+    --fne-surface: #161d21;
+    --fne-surface-alt: #1e272c;
+    --fne-bordure: #2c3840;
+    --fne-texte: #eef3f5;
+    --fne-texte-faible: #9aa8b1;
+    --fne-primaire-600: #2f9c74;
+    --fne-primaire-100: #103828;
+    --fne-succes-100: #0e3323;
+    --fne-attente-100: #3a2a06;
+    --fne-erreur-100: #3d1512;
+    --fne-info-100: #0d2742;
+  }
+}
+
+:root[data-theme='dark'] {
+  --fne-fond: #0d1214;
+  --fne-surface: #161d21;
+  --fne-surface-alt: #1e272c;
+  --fne-bordure: #2c3840;
+  --fne-texte: #eef3f5;
+  --fne-texte-faible: #9aa8b1;
+  --fne-primaire-600: #2f9c74;
+  --fne-primaire-100: #103828;
+  --fne-succes-100: #0e3323;
+  --fne-attente-100: #3a2a06;
+  --fne-erreur-100: #3d1512;
+  --fne-info-100: #0d2742;
+}
+
+/**
+ * Mode économie de données : activé par l'utilisateur, ou automatiquement quand
+ * le navigateur signale une connexion contrainte. Supprime tout ce qui coûte du
+ * réseau ou du GPU sans porter d'information.
+ */
+:root[data-eco='true'] {
+  --fne-ombre-1: none;
+  --fne-ombre-2: none;
+}
+
+:root[data-eco='true'] img:not([data-essentiel='true']) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

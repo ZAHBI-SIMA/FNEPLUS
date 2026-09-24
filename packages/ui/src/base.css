@@ -1,0 +1,64 @@
+/** Réinitialisation minimale et primitives partagées. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--fne-police);
+  font-size: var(--fne-taille-md);
+  line-height: 1.5;
+  color: var(--fne-texte);
+  background: var(--fne-fond);
+  /* Évite le zoom involontaire sur les champs à la saisie sur iOS */
+  -webkit-font-smoothing: antialiased;
+}
+
+:where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+}
+
+/* Un champ sous 16 px déclenche un zoom automatique sur iOS : à proscrire. */
+:where(input, select, textarea) {
+  font-size: max(16px, var(--fne-taille-md));
+}
+
+:where(a) {
+  color: var(--fne-primaire-600);
+}
+
+:where(:focus-visible) {
+  outline: 3px solid var(--fne-accent-500);
+  outline-offset: 2px;
+}
+
+.fne-conteneur {
+  width: 100%;
+  max-width: var(--fne-largeur-contenu);
+  margin-inline: auto;
+  padding-inline: var(--fne-esp-4);
+}
+
+.fne-chiffres {
+  font-family: var(--fne-police-chiffres);
+  font-variant-numeric: tabular-nums;
+}
+
+.fne-visuellement-cache {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

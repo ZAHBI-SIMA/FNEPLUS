@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.next/
+.turbo/
+coverage/
+pnpm-lock.yaml
+
+# Runtime SQLite copié depuis node_modules : code tiers, jamais édité ici.
+apps/web/public/sqlite3/
+
+# Document source du client
+input/

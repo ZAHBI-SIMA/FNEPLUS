@@ -1,0 +1,26 @@
+{
+  "name": "@fneplus/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css",
+    "./base.css": "./src/base.css",
+    "./composants.css": "./src/composants.css"
+  },
+  "scripts": {
+    "build": "echo \"@fneplus/ui est transpilé par l'application consommatrice\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo \"lint ui\""
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@fneplus/tsconfig": "workspace:*",
+    "@types/react": "^19.0.2",
+    "react": "^19.0.0",
+    "typescript": "^5.7.2"
+  }
+}

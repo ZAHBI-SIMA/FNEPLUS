@@ -1,0 +1,33 @@
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Données locales de développement
+infra/data/
+*.sqlite
+*.sqlite-journal
+
+# Runtime SQLite WASM : copie de node_modules, regenere par le script prebuild
+apps/web/public/sqlite3/
+
+# Documents source du client : conserves localement, jamais publies
+input/

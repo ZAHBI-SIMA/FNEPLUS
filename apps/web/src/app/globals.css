@@ -1,0 +1,265 @@
+@import '@fneplus/ui/tokens.css';
+@import '@fneplus/ui/base.css';
+@import '@fneplus/ui/composants.css';
+
+/* Mise en page applicative */
+
+.fne-app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.fne-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fne-esp-3);
+  padding: var(--fne-esp-4);
+  background: var(--fne-surface);
+  border-bottom: 1px solid var(--fne-bordure);
+}
+
+.fne-entete__marque {
+  display: flex;
+  align-items: baseline;
+  gap: var(--fne-esp-2);
+  font-size: var(--fne-taille-lg);
+  font-weight: 700;
+  color: var(--fne-primaire-600);
+}
+
+.fne-entete__marque span {
+  font-size: var(--fne-taille-xs);
+  font-weight: 500;
+  color: var(--fne-texte-faible);
+}
+
+.fne-contenu {
+  flex: 1;
+  padding-block: var(--fne-esp-5) var(--fne-esp-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fne-esp-4);
+}
+
+.fne-titre-page {
+  margin: 0;
+  font-size: var(--fne-taille-xl);
+  line-height: 1.25;
+}
+
+.fne-sous-titre {
+  margin: var(--fne-esp-2) 0 0;
+  color: var(--fne-texte-faible);
+  font-size: var(--fne-taille-sm);
+}
+
+.fne-grille-stats {
+  display: grid;
+  /* 140 px : trois tuiles tiennent côte à côte dès 460 px, deux à 375 px. */
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--fne-esp-3);
+  /* Les tuiles d'une même rangée gardent la même hauteur, même si l'une passe
+     sur deux lignes : une grille de chiffres bancale se lit mal. */
+  align-items: stretch;
+}
+
+.fne-grille-stats > * {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.fne-stat__valeur {
+  /* Le montant s'adapte à la largeur plutôt que de casser « F CFA » sur deux
+     lignes : un chiffre coupé se relit de travers à la caisse. */
+  font-size: clamp(1.375rem, 7vw, 2rem);
+  white-space: nowrap;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  margin: var(--fne-esp-2) 0 0;
+}
+
+.fne-stat__unite {
+  font-size: var(--fne-taille-sm);
+  font-weight: 500;
+  color: var(--fne-texte-faible);
+}
+
+.fne-pile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fne-esp-3);
+}
+
+.fne-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fne-esp-3);
+}
+
+.fne-pied {
+  padding: var(--fne-esp-5) var(--fne-esp-4) var(--fne-esp-6);
+  font-size: var(--fne-taille-xs);
+  color: var(--fne-texte-faible);
+  text-align: center;
+}
+
+/* Ligne de facture dans une liste */
+
+/*
+ * Grille à deux colonnes plutôt qu'un flex : à 360 px, un numéro de facture et
+ * un montant en franc CFA ne tiennent pas sur la même ligne sans se couper.
+ * Chacun garde donc sa colonne et son `nowrap` — un numéro coupé en deux ne se
+ * lit plus, et c'est l'information qu'on cherche en priorité dans un historique.
+ */
+.fne-facture {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--fne-esp-1) var(--fne-esp-3);
+  align-items: baseline;
+  padding-block: var(--fne-esp-3);
+  border-bottom: 1px solid var(--fne-bordure);
+}
+
+.fne-facture:last-child {
+  border-bottom: none;
+}
+
+.fne-facture__numero {
+  font-family: var(--fne-police-chiffres);
+  font-size: var(--fne-taille-sm);
+  white-space: nowrap;
+}
+
+.fne-facture__montant {
+  font-family: var(--fne-police-chiffres);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.fne-facture__client {
+  grid-column: 1;
+  color: var(--fne-texte-faible);
+  font-size: var(--fne-taille-sm);
+}
+
+.fne-facture__statut {
+  grid-column: 2;
+  justify-self: end;
+}
+
+/* Onglets de navigation */
+
+.fne-onglets {
+  display: flex;
+  gap: var(--fne-esp-1);
+  padding: var(--fne-esp-2) var(--fne-esp-4) 0;
+  background: var(--fne-surface);
+  border-bottom: 1px solid var(--fne-bordure);
+  overflow-x: auto;
+}
+
+.fne-onglet {
+  flex: 1;
+  min-height: var(--fne-cible-tactile);
+  padding: var(--fne-esp-3) var(--fne-esp-4);
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  font-weight: 600;
+  color: var(--fne-texte-faible);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.fne-onglet--actif {
+  color: var(--fne-primaire-600);
+  border-bottom-color: var(--fne-primaire-600);
+}
+
+/* Formulaires */
+
+.fne-formulaire {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fne-esp-4);
+}
+
+.fne-champ {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fne-esp-2);
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.fne-champ > span,
+.fne-champ > legend {
+  font-size: var(--fne-taille-sm);
+  font-weight: 600;
+  color: var(--fne-texte-faible);
+  padding: 0;
+}
+
+.fne-champ input {
+  min-height: var(--fne-cible-tactile);
+  padding: var(--fne-esp-3);
+  border: 2px solid var(--fne-bordure);
+  border-radius: var(--fne-rayon-md);
+  background: var(--fne-surface);
+  width: 100%;
+}
+
+.fne-champ input:focus {
+  border-color: var(--fne-primaire-600);
+}
+
+/* Saisie d'un code : chiffres espacés, lisibles d'un coup d'œil. */
+.fne-champ--code {
+  font-family: var(--fne-police-chiffres);
+  font-size: 1.5rem !important;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+.fne-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fne-esp-2);
+}
+
+.fne-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--fne-esp-3);
+  min-height: var(--fne-cible-tactile);
+  padding: var(--fne-esp-3);
+  border: 2px solid var(--fne-bordure);
+  border-radius: var(--fne-rayon-md);
+  cursor: pointer;
+}
+
+.fne-option:has(input:checked) {
+  border-color: var(--fne-primaire-600);
+  background: var(--fne-primaire-50);
+}
+
+.fne-option input {
+  margin-top: 0.2rem;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.fne-option__aide {
+  display: block;
+  font-size: var(--fne-taille-sm);
+  font-weight: 400;
+  color: var(--fne-texte-faible);
+}

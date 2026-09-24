@@ -1,0 +1,169 @@
+# Journal des décisions techniques
+
+Une entrée par décision qui contraint la suite du développement. Format court :
+le problème, le choix, ce qu'il coûte.
+
+---
+
+## D-001 — SQLite s'exécute dans un Web Worker, pas dans le thread principal
+
+**Date :** Sprint 0
+
+**Problème.** Le plan de développement prévoyait SQLite WASM avec le VFS
+`opfs-sahpool` dans le thread principal, pour éviter d'imposer les en-têtes
+COOP/COEP à tout le site. À l'exécution, l'installation du VFS échoue avec
+« Missing required OPFS APIs », et l'application bascule silencieusement en base
+mémoire — c'est-à-dire sans aucune persistance hors ligne, ce qui vide le produit
+de sa promesse.
+
+**Cause.** `FileSystemFileHandle.createSyncAccessHandle()` n'est pas exposé dans
+le thread principal. Mesuré sur le navigateur cible :
+
+| Contexte         | `createSyncAccessHandle` |
+| ---------------- | ------------------------ |
+| Thread principal | `undefined`              |
+| Web Worker       | `function`               |
+
+**Décision.** Toute la base locale vit dans `apps/web/src/workers/base-locale.worker.ts`.
+Le worker n'expose pas de SQL mais des opérations métier complètes
+(`EMETTRE_FACTURE`, `ETAT`), et l'interface dialogue avec lui par messages.
+
+**Ce que ça apporte.**
+
+- OPFS fonctionne : la persistance est réelle, vérifiée serveur éteint.
+- La transaction d'émission reste indivisible côté worker — aucun `await` ne peut
+  s'intercaler entre le BEGIN et le COMMIT, donc jamais de numéro consommé sans
+  facture enregistrée.
+- Le thread principal ne se fige plus pendant une écriture disque.
+- Effet de bord mesuré : le bundle de la page d'accueil passe de 10,1 Ko à
+  4,35 Ko, le code de la base partant dans un chunk worker chargé à part.
+
+**Ce que ça coûte.**
+
+- Toute opération sur la base devient asynchrone côté interface.
+- Un seul onglet peut détenir la base (contrainte du VFS `sahpool`). Un second
+  onglet doit recevoir un message explicite — **à traiter au Sprint 1**.
+
+---
+
+## D-002 — Le budget de poids se mesure sur la route, pas sur le dossier de build
+
+**Date :** Sprint 0
+
+**Problème.** La première version du contrôle de poids additionnait tous les
+fichiers de `.next/static/chunks`, et annonçait 257 Ko contre un budget de 200 Ko.
+Ce chiffre est faux : il compte des bundles qui ne sont jamais chargés ensemble,
+et des variantes du même code.
+
+**Décision.** La mesure lit `app-build-manifest.json`, prend les fichiers de la
+route `/`, les déduplique et les compresse en gzip. Les polyfills destinés aux
+navigateurs anciens sont reportés séparément : ils ne comptent pas dans le budget
+nominal, mais ils sont bien téléchargés par les appareils d'entrée de gamme qui
+sont notre cible — les ignorer serait se mentir.
+
+**Mesure actuelle :** 104,7 Ko sur 200 Ko (52 % du budget), plus 38,7 Ko de
+polyfills.
+
+---
+
+## D-003 — Le simulateur DGI est un outil de test du connecteur, pas une imitation de l'API
+
+**Date :** Sprint 0
+
+**Problème.** L'accès au bac à sable de `fne.dgi.gouv.ci` n'est pas acquis, et le
+schéma exact des réponses reste à confirmer. Attendre bloquerait le calendrier du
+MVP ; deviner produirait un faux sentiment de conformité.
+
+**Décision.** Le simulateur ne cherche pas la fidélité de schéma. Il sert à
+éprouver le **connecteur** : idempotence sur rejeu, file, repli exponentiel,
+tolérance à la lenteur et aux coupures. Il expose donc un panneau de contrôle
+(`POST /_simulateur/config`) pour injecter latence, taux d'erreur, taux de rejet
+et coupure brutale de connexion.
+
+Le mapping vers le schéma réel de la DGI sera isolé dans une couche
+d'anticorruption au Sprint 4 : seule cette couche changera le jour où la
+spécification officielle sera disponible.
+
+---
+
+## D-004 — L'isolation multi-tenant est portée par PostgreSQL, pas par le code applicatif
+
+**Date :** Sprint 1
+
+**Problème.** Avec un `WHERE entreprise_id = ?` posé à la main dans chaque
+requête, une seule omission suffit à exposer les factures d'un client à un autre.
+Sur un produit de conformité fiscale, cette fuite se paierait en confiance et en
+contentieux, pas en ticket de support.
+
+**Décision.** Row Level Security sur toutes les tables métier, avec `FORCE`, et
+un rôle applicatif (`fneplus_app`) qui ne contourne pas les politiques. Chaque
+transaction pose `SET LOCAL fneplus.entreprise_id`, lu depuis le jeton et jamais
+depuis un paramètre de requête. Sans ce réglage, les politiques ne laissent
+passer aucune ligne : un développeur qui oublie le contexte obtient zéro
+résultat, jamais les données d'un autre client.
+
+`SET LOCAL` et non `SET` : le réglage meurt avec la transaction. Sur un pool de
+connexions, un `SET` persistant laisserait le contexte d'un client attaché à la
+connexion recyclée par le suivant — exactement la fuite que la RLS doit empêcher.
+
+**Deux portes étroites assumées.** La connexion doit retrouver un compte à partir
+d'un numéro de téléphone, et l'inscription vérifier qu'un NCC est libre — les
+deux avant de connaître l'entreprise. Plutôt que d'affaiblir les politiques, deux
+fonctions `SECURITY DEFINER` au `search_path` figé ne rendent que le strict
+nécessaire, et ne permettent pas d'énumérer les comptes.
+
+**Vérifié par des tests d'intégration contre un vrai PostgreSQL** : une entreprise
+ne voit pas les clients d'une autre, ne peut pas allouer de plage sur le terminal
+d'une autre, ni créer un terminal sur son point de vente. Une base simulée
+n'aurait rien prouvé de tout cela.
+
+---
+
+## D-005 — L'injection de dépendances est explicite
+
+**Date :** Sprint 1
+
+**Problème.** NestJS résout ses dépendances via les métadonnées `design:paramtypes`
+émises par TypeScript. Or esbuild — utilisé par `tsx` en développement et par
+Vitest pour les tests — ne les produit pas. Résultat : `Nest can't resolve
+dependencies`, au démarrage comme dans les tests.
+
+**Décision.** Chaque dépendance est annotée `@Inject(Classe)`, y compris quand le
+type suffirait avec `tsc`. L'application ne dépend plus du compilateur utilisé,
+tourne à l'identique sous tsx, Vitest et tsc, et les dépendances sont lisibles
+sans connaître le mécanisme de métadonnées.
+
+**Coût.** Un peu de verbosité dans les constructeurs. Préféré à l'ajout d'une
+chaîne de compilation SWC pour les tests, qui aurait fait diverger le code
+exécuté en test de celui exécuté en production.
+
+---
+
+## D-006 — Le stockage local doit être déclaré persistant
+
+**Date :** Sprint 1
+
+**Problème.** Constaté en test : après deux jours, la session et les commandes en
+attente d'un terminal avaient disparu. `navigator.storage.persisted()` renvoyait
+`false`. Par défaut, le stockage d'une origine est « au mieux » — le navigateur
+peut l'effacer sous pression disque ou après inactivité. Pour un produit qui
+promet de garder les factures sur l'appareil, c'est la promesse elle-même qui
+tombe : une facture émise hors ligne et pas encore transmise disparaîtrait sans
+que personne ne s'en aperçoive.
+
+**Décision.**
+
+1. `navigator.storage.persist()` est demandé à l'ouverture de la base.
+2. L'état de conservation est exposé dans l'interface, et un avertissement
+   explicite invite à installer la PWA si le navigateur a refusé — c'est ce qui
+   fait basculer Chrome vers l'octroi automatique.
+3. Cet avertissement est affiché **avant** la connexion, et pas seulement après :
+   c'est au moment de s'installer sur un appareil qu'il faut savoir que celui-ci
+   ne garderait pas les factures.
+
+**Corollaire.** Le repli en base mémoire ne se déclenche plus au premier échec.
+Le VFS `sahpool` verrouille ses fichiers, et un onglet qui vient d'être fermé met
+un instant à les relâcher ; basculer immédiatement en mémoire faisait perdre la
+session pour un chevauchement de quelques centaines de millisecondes. On réessaie
+désormais quatre fois, et un verrou tenu par un autre onglet est signalé comme
+tel plutôt que confondu avec une absence de support.

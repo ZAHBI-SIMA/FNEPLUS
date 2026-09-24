@@ -1,0 +1,77 @@
+name: Intégration continue
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Une seule exécution par branche : sur un dépôt actif, les exécutions
+# concurrentes sur d'anciens commits ne servent à rien.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  qualite:
+    name: Types, tests et budget de poids
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Les tests de l'API tournent contre un vrai PostgreSQL : l'isolation
+    # multi-tenant repose sur Row Level Security, qu'une base simulée ne
+    # vérifierait pas.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fneplus
+          POSTGRES_PASSWORD: fneplus_dev
+          POSTGRES_DB: fneplus
+        ports:
+          - 5435:5432
+        options: >-
+          --health-cmd "pg_isready -U fneplus -d fneplus"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Vérifier le formatage
+        run: pnpm format:check
+
+      - name: Construire les packages
+        run: pnpm build
+
+      - name: Vérifier les types
+        run: pnpm typecheck
+
+      - name: Appliquer les migrations
+        run: pnpm --filter @fneplus/api migrer
+
+      - name: Tests unitaires et d'intégration
+        run: pnpm test
+
+      # Le budget de poids est une contrainte produit, pas une bonne intention :
+      # il est vérifié à chaque changement, et une dérive fait échouer la CI.
+      - name: Budget de poids du premier chargement
+        run: pnpm --filter @fneplus/web analyse:poids
+
+      - name: Couverture des modules à risque fiscal
+        run: pnpm --filter @fneplus/core exec vitest run --coverage
