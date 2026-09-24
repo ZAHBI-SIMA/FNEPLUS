@@ -299,6 +299,10 @@ export class SyncService {
 
     // Recalculée plutôt que reprise telle quelle : c'est la version du serveur
     // qui fait foi et qui partira à la DGI.
+    //
+    // Le contenu du QR, lui, est conservé TEL QUE le terminal l'a produit : c'est
+    // le code physiquement remis au client, et c'est celui-là qu'il faudra
+    // pouvoir retrouver si quelqu'un le scanne des mois plus tard.
     const recalcul = calculerFacture(lignes, {
       dateEmission: facture.emiseLe,
       regimeFiscal: entreprise.regime_fiscal,
@@ -308,7 +312,7 @@ export class SyncService {
       INSERT INTO factures (
         id, entreprise_id, point_de_vente_id, terminal_id, type, statut, numero, emise_le,
         client_id, client_nom, client_ncc, total_ht, total_tva, total_ttc, totaux, lignes,
-        version_referentiel, hash_precedent, hash, facture_origine_id
+        version_referentiel, hash_precedent, hash, contenu_qr, facture_origine_id
       ) VALUES (
         ${facture.id}, ${entrepriseId}, ${facture.pointDeVenteId}, ${facture.terminalId},
         ${facture.type}, ${'EN_FILE_DGI'}, ${facture.numero}, ${facture.emiseLe},
@@ -316,7 +320,7 @@ export class SyncService {
         ${recalcul.totaux.totalHT}, ${recalcul.totaux.totalTVA}, ${recalcul.totaux.totalTTC},
         ${tx.json(recalcul.totaux as never)}, ${tx.json(lignes as never)},
         ${recalcul.versionReferentielFiscal}, ${facture.hashPrecedent}, ${facture.hash},
-        ${facture.factureOrigineId ?? null}
+        ${facture.contenuQR ?? null}, ${facture.factureOrigineId ?? null}
       )
       ON CONFLICT (entreprise_id, numero) DO NOTHING
       RETURNING id

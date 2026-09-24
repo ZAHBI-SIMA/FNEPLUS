@@ -14,12 +14,14 @@ import type {
   ChargeConnexion,
   ChargeEmission,
   ChargeInscription,
+  ChargeProduit,
   EtatTerminal,
   ReponseTerminal,
   RequeteTerminal,
   ResultatClients,
   ResultatConnexion,
   ResultatEmission,
+  ResultatProduits,
   ResultatSynchronisation,
 } from './protocole-terminal';
 
@@ -135,6 +137,14 @@ class ClientTerminal {
 
   listerClients(recherche?: string): Promise<ResultatClients> {
     return this.appeler<ResultatClients>('LISTER_CLIENTS', { recherche });
+  }
+
+  enregistrerProduit(charge: ChargeProduit): Promise<{ id: string; designation: string }> {
+    return this.appeler('ENREGISTRER_PRODUIT', charge);
+  }
+
+  listerProduits(recherche?: string): Promise<ResultatProduits> {
+    return this.appeler<ResultatProduits>('LISTER_PRODUITS', { recherche });
   }
 
   synchroniser(

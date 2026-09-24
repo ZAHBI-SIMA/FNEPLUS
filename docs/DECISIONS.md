@@ -167,3 +167,55 @@ un instant à les relâcher ; basculer immédiatement en mémoire faisait perdre
 session pour un chevauchement de quelques centaines de millisecondes. On réessaie
 désormais quatre fois, et un verrou tenu par un autre onglet est signalé comme
 tel plutôt que confondu avec une absence de support.
+
+---
+
+## D-007 — Le QR est produit hors ligne, et dit qu'il est provisoire
+
+**Date :** Sprint 2
+
+**Problème.** La structure du QR exigée par la DGI n'est toujours pas confirmée
+(point bloquant n° 1). Deux scénarios s'excluent : un QR auto-portant que le
+terminal peut produire seul, ou un QR contenant un identifiant renvoyé par
+l'administration après transmission — auquel cas la promesse « remise du QR au
+client sans attendre la connexion » ne tient plus telle quelle.
+
+Attendre bloquait le Sprint 2. Choisir au hasard aurait produit un faux
+sentiment de conformité.
+
+**Décision.** Le terminal produit un QR auto-portant, versionné `FNE1`, contenant
+NCC, numéro, date, totaux et empreinte d'intégrité tronquée. Tant que la DGI n'a
+pas certifié la facture, le QR est **marqué provisoire** et l'interface le dit au
+commerçant en toutes lettres, au lieu de laisser croire à une conformité acquise.
+
+Toute la logique tient dans `packages/core/src/qr/contenu.ts` : le jour où la
+spécification arrive, c'est ce seul fichier qui change, et le format versionné
+permettra de savoir à quelle règle répondait un QR archivé des années plus tôt.
+
+**Choix de format.** Champs positionnels séparés par `|`, pas de JSON. Un QR plus
+court, c'est une matrice moins dense, donc un code qui se lit du premier coup sur
+un ticket thermique scanné par un téléphone d'entrée de gamme. Un test vérifie
+que le contenu reste sous 150 caractères.
+
+---
+
+## D-008 — Le PDF à valeur probante sera produit par le serveur, pas par le terminal
+
+**Date :** Sprint 2
+
+**Problème.** Le cahier des charges attend un archivage légal. La tentation est
+de générer le PDF sur le terminal, au moment de la vente.
+
+**Décision.** Le terminal remet un **reçu imprimable** (HTML avec feuille de
+style d'impression, calibrée pour 80 mm de ticket thermique). Le **PDF/A
+archivable** sera produit et scellé côté serveur au Sprint 4, avec l'horodatage
+qualifié et la chaîne d'intégrité.
+
+**Pourquoi.** Un document à valeur probante doit être scellé par une autorité de
+confiance. Un terminal dont l'horloge dérive et dont le logiciel peut être
+modifié n'en est pas une. Faire produire le PDF légal par le terminal donnerait
+un document opposable produit par la partie qu'il est censé engager.
+
+**Bénéfice collatéral.** Une bibliothèque PDF pèse plusieurs centaines de
+kilo-octets. L'éviter sur le terminal préserve le budget de poids, qui reste à
+56 % après l'ajout de l'écran de vente et de l'encodeur QR.

@@ -14,3 +14,4 @@ export * from './numbering/plage.js';
 export * from './integrity/chaine.js';
 export * from './clock/hlc.js';
 export * from './sync/commandes.js';
+export * from './qr/contenu.js';

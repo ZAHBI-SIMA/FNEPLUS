@@ -9,7 +9,12 @@
  * Le worker ne reçoit jamais de SQL : il reçoit des intentions métier.
  */
 
-import { HorlogeHLC, numerosRestants, plageBientotEpuisee } from '@fneplus/core';
+import {
+  construireContenuQR,
+  HorlogeHLC,
+  numerosRestants,
+  plageBientotEpuisee,
+} from '@fneplus/core';
 import { baseLocale } from '@/lib/db/base-locale';
 import {
   compterEchecsDefinitifs,
@@ -18,6 +23,7 @@ import {
 } from '@/lib/outbox';
 import { dernieresFactures, emettreFacture, plageActive, totauxDuJour } from '@/lib/depot/factures';
 import { compterClients, enregistrerClient, listerClients } from '@/lib/depot/clients';
+import { compterProduits, enregistrerProduit, listerProduits } from '@/lib/depot/produits';
 import {
   assurerReserveNumeros,
   libelleAppareilParDefaut,
@@ -29,6 +35,7 @@ import { synchroniser } from '@/lib/synchronisation';
 import { appelerApi, ErreurApi } from '@/lib/api-client';
 import type {
   ChargeClient,
+  ChargeProduit,
   ChargeConnexion,
   ChargeEmission,
   ChargeInscription,
@@ -79,6 +86,7 @@ async function etatTerminal(): Promise<EtatTerminal> {
       numerosRestants: 0,
       alertePlage: false,
       nombreClients: 0,
+      nombreProduits: 0,
     };
   }
 
@@ -101,6 +109,8 @@ async function etatTerminal(): Promise<EtatTerminal> {
     numerosRestants: plage ? numerosRestants(plage) : 0,
     alertePlage: plage ? plageBientotEpuisee(plage) : true,
     nombreClients: compterClients(base, session.entrepriseId),
+    nombreProduits: compterProduits(base, session.entrepriseId),
+    ncc: session.ncc,
   };
 }
 
@@ -205,6 +215,7 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
         base,
         {
           entrepriseId: session.entrepriseId,
+          ncc: session.ncc,
           pointDeVenteId: session.pointDeVenteId,
           terminalId: session.terminalId,
           regimeFiscal: session.regimeFiscal,
@@ -218,9 +229,16 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
         },
       );
 
+      const qr = construireContenuQR(facture, session.ncc);
+
       const resultat: ResultatEmission = {
+        factureId: facture.id,
         numero: facture.numero,
         totalTTC: facture.totaux.totalTTC,
+        emiseLe: facture.emiseLe,
+        clientNom: facture.clientNom,
+        contenuQR: qr.contenu,
+        qrProvisoire: qr.provisoire,
         dureeMs: performance.now() - depart,
       };
       return resultat;
@@ -247,6 +265,28 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
       sessionRequise(session);
       const { recherche } = (requete.charge ?? {}) as { recherche?: string };
       return listerClients(base, session.entrepriseId, recherche);
+    }
+
+    case 'ENREGISTRER_PRODUIT': {
+      const session = lireSession(base);
+      sessionRequise(session);
+
+      return enregistrerProduit(
+        base,
+        {
+          entrepriseId: session.entrepriseId,
+          terminalId: session.terminalId,
+          hlc: horlogeDe(session).tick(),
+        },
+        requete.charge as ChargeProduit,
+      );
+    }
+
+    case 'LISTER_PRODUITS': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      const { recherche } = (requete.charge ?? {}) as { recherche?: string };
+      return listerProduits(base, session.entrepriseId, recherche);
     }
 
     case 'SYNCHRONISER': {

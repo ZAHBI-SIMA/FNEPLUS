@@ -24,6 +24,8 @@ export interface SessionTerminal {
   role: 'PROPRIETAIRE' | 'CAISSIER' | 'COMPTABLE';
   nom: string;
   raisonSociale: string;
+  /** NCC de l'entreprise : il figure dans le QR de chaque facture. */
+  ncc: string;
   regimeFiscal: 'ENTREPRENANT' | 'MICROENTREPRISE' | 'REEL_SIMPLIFIE' | 'REEL_NORMAL';
   pointDeVenteId: string;
   terminalId: string;

@@ -15,6 +15,7 @@
 import {
   calculerFacture,
   calculerHash,
+  construireContenuQR,
   consommerNumero,
   HASH_GENESE,
   uuidv7,
@@ -31,6 +32,8 @@ import { empiler } from '../outbox';
 
 export interface ContexteEmission {
   entrepriseId: string;
+  /** NCC de l'émetteur, encodé dans le QR. */
+  ncc: string;
   pointDeVenteId: string;
   terminalId: string;
   regimeFiscal: RegimeFiscal;
@@ -175,6 +178,13 @@ export async function emettreFacture(
     hash,
   };
 
+  // 3 bis. QR remis au client immédiatement, sans attendre le réseau. Il est
+  // marqué provisoire tant que la DGI n'a pas renvoyé d'identifiant de
+  // certification — l'interface le dit, plutôt que de laisser croire à une
+  // conformité déjà acquise.
+  const qr = construireContenuQR(facture, contexte.ncc);
+  facture.contenuQR = qr.contenu;
+
   // 4. Écriture atomique : facture + lignes + avancée du curseur + commande de
   //    transmission. Tout, ou rien.
   base.transaction(() => {
@@ -183,8 +193,8 @@ export async function emettreFacture(
          id, entreprise_id, point_de_vente_id, terminal_id, type, statut, numero,
          emise_le, client_id, client_nom, client_ncc,
          total_ht, total_tva, total_ttc, totaux_json,
-         version_referentiel, hash_precedent, hash, facture_origine_id
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         version_referentiel, hash_precedent, hash, contenu_qr, facture_origine_id
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         facture.id,
         facture.entrepriseId,
@@ -204,6 +214,7 @@ export async function emettreFacture(
         facture.versionReferentielFiscal,
         facture.hashPrecedent,
         facture.hash,
+        facture.contenuQR ?? null,
         facture.factureOrigineId ?? null,
       ],
     );

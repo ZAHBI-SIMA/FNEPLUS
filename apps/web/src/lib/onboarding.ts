@@ -30,6 +30,7 @@ interface ReponseConnexionApi {
 
 interface EntrepriseApi {
   id: string;
+  ncc: string;
   raisonSociale: string;
   regimeFiscal: SessionTerminal['regimeFiscal'];
   pointsDeVente: { id: string; libelle: string; code: string }[];
@@ -86,6 +87,7 @@ export async function ouvrirSessionTerminal(
     role: reponse.session.role,
     nom: reponse.session.nom,
     raisonSociale: entreprise.raisonSociale,
+    ncc: entreprise.ncc,
     regimeFiscal: entreprise.regimeFiscal,
     pointDeVenteId: pointDeVente.id,
     terminalId: terminal.terminalId,
@@ -101,7 +103,7 @@ export async function ouvrirSessionTerminal(
          maj_le = excluded.maj_le`,
       [
         session.entrepriseId,
-        '',
+        entreprise.ncc,
         entreprise.raisonSociale,
         entreprise.regimeFiscal,
         '',

@@ -28,6 +28,7 @@ import {
   relancerImmediatement,
 } from './outbox';
 import { appliquerDeltaClients } from './depot/clients';
+import { appliquerDeltaProduits } from './depot/produits';
 import { lireSession, majSession } from './session-locale';
 
 /** Taille d'un lot. Assez petit pour passer sur une connexion lente. */
@@ -45,7 +46,7 @@ export interface ResultatSynchronisation {
 interface ReponseSyncApi extends ReponseSynchronisation {
   delta: {
     clients: Parameters<typeof appliquerDeltaClients>[2];
-    produits: unknown[];
+    produits: Parameters<typeof appliquerDeltaProduits>[2];
     jusqua: string;
   };
 }
@@ -139,7 +140,9 @@ export async function synchroniser(
     if (reponse.delta.clients.length > 0) {
       clientsRecus += appliquerDeltaClients(base, session.entrepriseId, reponse.delta.clients);
     }
-    produitsRecus += reponse.delta.produits.length;
+    if (reponse.delta.produits.length > 0) {
+      produitsRecus += appliquerDeltaProduits(base, session.entrepriseId, reponse.delta.produits);
+    }
 
     recalerHorloge(reponse.horodatageServeur);
     majSession(base, { derniereSync: reponse.delta.jusqua });

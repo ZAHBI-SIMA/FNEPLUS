@@ -17,7 +17,7 @@ l'architecture découle de ce choix.
 | ------ | --------------------------------------------------------------- | ---------- |
 | 0      | Socle : monorepo, design system, PWA hors ligne, simulateur DGI | ✅ terminé |
 | 1      | Identité, auth OTP, référentiels clients/produits, multi-tenant | ✅ terminé |
-| 2      | Moteur de facturation, TVA multi-régimes, QR et PDF             | à venir    |
+| 2      | Écran de vente, catalogue articles, QR et reçu imprimable       | ✅ terminé |
 | 3      | Hors-ligne durci : outbox, synchronisation, conflits            | à venir    |
 | 4      | Connecteur DGI et archivage légal                               | à venir    |
 | 5      | Mobile money, suivi ARF, tableau de bord                        | à venir    |
@@ -133,6 +133,11 @@ faite ailleurs simplement parce qu'il se reconnecte après.
 **Le stockage local est déclaré persistant.** Sans `navigator.storage.persist()`,
 le navigateur peut effacer les factures en attente de transmission. L'application
 le demande, l'affiche, et prévient quand le navigateur a refusé.
+
+**Le QR est produit hors ligne et se déclare provisoire.** Tant que la DGI n'a pas
+certifié la facture, le code remis au client prouve son intégrité mais ne porte pas
+l'identifiant officiel — et l'interface le dit, plutôt que de laisser croire à une
+conformité acquise.
 
 **Le budget de poids est vérifié en intégration continue.** Moins de 200 Ko de JavaScript au
 premier chargement. Un budget qu'on ne mesure pas est un budget qu'on dépasse — chaque

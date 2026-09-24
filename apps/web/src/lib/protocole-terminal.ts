@@ -12,6 +12,7 @@ import type { LigneFacture, RegimeFiscal } from '@fneplus/core';
 import type { InfosBaseLocale } from './db/base-locale';
 import type { ResumeFacture, TotauxJour } from './depot/factures';
 import type { LigneClient } from './depot/clients';
+import type { LigneProduit } from './depot/produits';
 import type { ResultatSynchronisation } from './synchronisation';
 
 export type ActionTerminal =
@@ -26,6 +27,8 @@ export type ActionTerminal =
   | 'EMETTRE_FACTURE'
   | 'ENREGISTRER_CLIENT'
   | 'LISTER_CLIENTS'
+  | 'ENREGISTRER_PRODUIT'
+  | 'LISTER_PRODUITS'
   | 'SYNCHRONISER';
 
 export interface RequeteTerminal {
@@ -61,6 +64,9 @@ export interface EtatTerminal {
   numerosRestants: number;
   alertePlage: boolean;
   nombreClients: number;
+  nombreProduits: number;
+  /** NCC de l'entreprise, nécessaire au contenu du QR. */
+  ncc?: string;
 }
 
 export interface ChargeInscription {
@@ -93,11 +99,28 @@ export interface ChargeEmission {
 }
 
 export interface ResultatEmission {
+  factureId: string;
   numero: string;
   totalTTC: number;
+  emiseLe: string;
+  clientNom: string;
+  /** Contenu à encoder dans le QR remis au client. */
+  contenuQR: string;
+  /** Vrai tant que la DGI n'a pas certifié la facture. */
+  qrProvisoire: boolean;
   /** Durée mesurée dans le worker, hors coût de message. */
   dureeMs: number;
 }
+
+export interface ChargeProduit {
+  id?: string;
+  designation: string;
+  prixUnitaireHT: number;
+  codeTva: 'TVA_NORMAL' | 'TVA_REDUIT' | 'EXONERE' | 'HORS_CHAMP';
+  reference?: string;
+}
+
+export type ResultatProduits = LigneProduit[];
 
 export interface ChargeClient {
   id?: string;

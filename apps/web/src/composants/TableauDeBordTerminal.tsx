@@ -11,45 +11,34 @@ import {
   LigneInfo,
   tonPourStatutFacture,
 } from '@fneplus/ui';
-import { formaterXOF, type LigneFacture } from '@fneplus/core';
+import { formaterXOF } from '@fneplus/core';
 import { terminal } from '@/lib/client-terminal';
-import type { EtatTerminal } from '@/lib/protocole-terminal';
+import type { EtatTerminal, ResultatEmission } from '@/lib/protocole-terminal';
 import { useEtatReseau } from '@/lib/hooks/useEtatReseau';
 import { EcranConnexion } from './EcranConnexion';
 import { EcranClients } from './EcranClients';
+import { EcranArticles } from './EcranArticles';
+import { EcranVente } from './EcranVente';
+import { RecuFacture } from './RecuFacture';
 
-/** Panier de démonstration, en attendant l'écran de saisie du Sprint 2. */
-const PANIER_DEMO: Omit<LigneFacture, 'id'>[] = [
-  {
-    designation: 'Sac de riz parfumé 25 kg',
-    quantite: 1,
-    prixUnitaireHT: 18_500,
-    codeTva: 'TVA_NORMAL',
-  },
-  { designation: 'Bidon d’huile 5 L', quantite: 2, prixUnitaireHT: 6_200, codeTva: 'TVA_NORMAL' },
-  {
-    designation: 'Lait en poudre 400 g',
-    quantite: 3,
-    prixUnitaireHT: 2_400,
-    codeTva: 'TVA_REDUIT',
-  },
+type Onglet = 'VENTE' | 'ARTICLES' | 'CLIENTS' | 'JOURNAL';
+
+/** La vente est en tête : c'est l'écran ouvert cent fois par jour. */
+const ONGLETS: [Onglet, (etat: EtatTerminal) => string][] = [
+  ['VENTE', () => 'Vendre'],
+  ['ARTICLES', (e) => `Articles${e.nombreProduits > 0 ? ` (${e.nombreProduits})` : ''}`],
+  ['CLIENTS', (e) => `Clients${e.nombreClients > 0 ? ` (${e.nombreClients})` : ''}`],
+  ['JOURNAL', () => 'Journal'],
 ];
-
-type Onglet = 'CAISSE' | 'CLIENTS';
 
 export function TableauDeBordTerminal() {
   const reseau = useEtatReseau();
   const [etat, setEtat] = useState<EtatTerminal | null>(null);
-  const [onglet, setOnglet] = useState<Onglet>('CAISSE');
+  const [onglet, setOnglet] = useState<Onglet>('VENTE');
+  const [recu, setRecu] = useState<ResultatEmission | null>(null);
   const [erreurFatale, setErreurFatale] = useState<string | null>(null);
-  const [erreur, setErreur] = useState<string | null>(null);
   const [messageSync, setMessageSync] = useState<string | null>(null);
-  const [occupe, setOccupe] = useState(false);
   const [synchronisation, setSynchronisation] = useState(false);
-  const [derniereEmission, setDerniereEmission] = useState<{
-    numero: string;
-    dureeMs: number;
-  } | null>(null);
 
   const rafraichir = useCallback(async () => {
     setEtat(await terminal().etat());
@@ -153,26 +142,10 @@ export function TableauDeBordTerminal() {
     return () => navigator.serviceWorker.removeEventListener('message', ecouteur);
   }, [lancerSync]);
 
-  const emettre = useCallback(async () => {
-    setOccupe(true);
-    setErreur(null);
-    try {
-      const resultat = await terminal().emettreFacture({
-        clientNom: 'Client comptant',
-        lignes: PANIER_DEMO,
-      });
-      setDerniereEmission({ numero: resultat.numero, dureeMs: resultat.dureeMs });
-      await rafraichir();
-    } catch (e) {
-      setErreur(e instanceof Error ? e.message : String(e));
-    } finally {
-      setOccupe(false);
-    }
-  }, [rafraichir]);
-
   const deconnecter = useCallback(async () => {
     setEtat(await terminal().deconnexion());
-    setOnglet('CAISSE');
+    setOnglet('VENTE');
+    setRecu(null);
   }, []);
 
   if (erreurFatale) {
@@ -202,6 +175,8 @@ export function TableauDeBordTerminal() {
     );
   }
 
+  const session = etat.session;
+
   const etatBandeau = !reseau.enLigne
     ? 'HORS_LIGNE'
     : synchronisation || etat.enAttente > 0
@@ -210,43 +185,60 @@ export function TableauDeBordTerminal() {
 
   return (
     <>
-      <BandeauReseau
-        etat={etatBandeau}
-        enAttente={etat.enAttente}
-        derniereSyncReussie={etat.session.derniereSync}
-      />
+      {/* Masqué à l'impression : seul le reçu doit sortir sur le papier. */}
+      <div className="fne-sans-impression">
+        <BandeauReseau
+          etat={etatBandeau}
+          enAttente={etat.enAttente}
+          derniereSyncReussie={session.derniereSync}
+        />
 
-      <nav className="fne-onglets" aria-label="Sections">
-        <button
-          className={`fne-onglet ${onglet === 'CAISSE' ? 'fne-onglet--actif' : ''}`}
-          onClick={() => setOnglet('CAISSE')}
-          aria-current={onglet === 'CAISSE' ? 'page' : undefined}
-        >
-          Caisse
-        </button>
-        <button
-          className={`fne-onglet ${onglet === 'CLIENTS' ? 'fne-onglet--actif' : ''}`}
-          onClick={() => setOnglet('CLIENTS')}
-          aria-current={onglet === 'CLIENTS' ? 'page' : undefined}
-        >
-          Clients{etat.nombreClients > 0 ? ` (${etat.nombreClients})` : ''}
-        </button>
-      </nav>
+        <nav className="fne-onglets" aria-label="Sections">
+          {ONGLETS.map(([cle, libelle]) => (
+            <button
+              key={cle}
+              className={`fne-onglet ${onglet === cle ? 'fne-onglet--actif' : ''}`}
+              onClick={() => {
+                setOnglet(cle);
+                setRecu(null);
+              }}
+              aria-current={onglet === cle ? 'page' : undefined}
+            >
+              {libelle(etat)}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       <main className="fne-conteneur fne-contenu">
-        {onglet === 'CLIENTS' ? (
+        {recu ? (
+          <RecuFacture
+            resultat={recu}
+            raisonSociale={session.raisonSociale}
+            ncc={etat.ncc ?? ''}
+            surFermer={() => setRecu(null)}
+          />
+        ) : onglet === 'VENTE' ? (
+          <EcranVente
+            regimeFiscal={session.regimeFiscal}
+            surEmission={setRecu}
+            surChangement={() => void rafraichir()}
+          />
+        ) : onglet === 'ARTICLES' ? (
+          <EcranArticles surChangement={() => void rafraichir()} />
+        ) : onglet === 'CLIENTS' ? (
           <EcranClients surChangement={() => void rafraichir()} />
         ) : (
           <>
             <header>
-              <h1 className="fne-titre-page">{etat.session.raisonSociale}</h1>
+              <h1 className="fne-titre-page">{session.raisonSociale}</h1>
               <p className="fne-sous-titre">
-                {etat.session.nom} · {libelleRegime(etat.session.regimeFiscal)}
+                {session.nom} · {libelleRegime(session.regimeFiscal)}
               </p>
             </header>
 
             {etat.infos.avertissement ? (
-              <Alerte ton="erreur">{etat.infos.avertissement}</Alerte>
+              <Alerte ton="attente">{etat.infos.avertissement}</Alerte>
             ) : null}
 
             {etat.alertePlage ? (
@@ -309,27 +301,6 @@ export function TableauDeBordTerminal() {
                 libelle="Qualité réseau"
                 valeur={reseau.enLigne ? (reseau.qualite ?? 'connecté') : 'aucune'}
               />
-            </Carte>
-
-            <Carte titre="Démonstration">
-              <p style={{ marginTop: 0, fontSize: '0.875rem' }}>
-                Coupez le réseau, puis émettez une facture : elle est calculée, numérotée, chaînée
-                et mise en file sans aucun appel serveur.
-              </p>
-              <div className="fne-actions">
-                <Bouton onClick={() => void emettre()} disabled={occupe} pleineLargeur>
-                  {occupe ? 'Émission…' : 'Émettre une facture de démonstration'}
-                </Bouton>
-              </div>
-              {derniereEmission ? (
-                <p
-                  style={{ marginBottom: 0, fontSize: '0.875rem', color: 'var(--fne-succes-600)' }}
-                >
-                  Facture <span className="fne-chiffres">{derniereEmission.numero}</span> émise en{' '}
-                  <strong>{derniereEmission.dureeMs.toFixed(0)} ms</strong>.
-                </p>
-              ) : null}
-              {erreur ? <Alerte ton="erreur">{erreur}</Alerte> : null}
             </Carte>
 
             <Carte titre="Dernières factures">
