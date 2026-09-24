@@ -13,7 +13,7 @@
  */
 
 import { uuidv7, type VersionReferentielFiscal } from '@fneplus/core';
-import type { BaseLocale } from './db/base-locale';
+import type { DepotLocal } from './db/depot-local';
 import { appelerApi } from './api-client';
 import { ecrireSession, empreinteAppareil, type SessionTerminal } from './session-locale';
 
@@ -55,7 +55,7 @@ export interface ResultatOuverture {
  * Appelée aussi bien après une connexion par code SMS que par code PIN.
  */
 export async function ouvrirSessionTerminal(
-  base: BaseLocale,
+  base: DepotLocal,
   reponse: ReponseConnexionApi,
   libelleAppareil: string,
 ): Promise<ResultatOuverture> {
@@ -137,7 +137,7 @@ export async function ouvrirSessionTerminal(
  * pendant que le réseau est là.
  */
 export async function assurerReserveNumeros(
-  base: BaseLocale,
+  base: DepotLocal,
   session: SessionTerminal,
 ): Promise<void> {
   const [restantes] = base.interroger<{ n: number }>(
@@ -206,7 +206,7 @@ export async function assurerReserveNumeros(
  * terminal retomberait sur les versions embarquées dans le bundle, qui peuvent
  * dater du dernier déploiement.
  */
-export async function mettreEnCacheReferentiels(base: BaseLocale): Promise<number> {
+export async function mettreEnCacheReferentiels(base: DepotLocal): Promise<number> {
   const versions = await appelerApi<VersionReferentielFiscal[]>('/api/v1/referentiels/fiscaux');
 
   base.transaction(() => {
@@ -232,7 +232,7 @@ export async function mettreEnCacheReferentiels(base: BaseLocale): Promise<numbe
 }
 
 /** Référentiels en cache local, pour le calcul hors ligne. */
-export function referentielsLocaux(base: BaseLocale): VersionReferentielFiscal[] {
+export function referentielsLocaux(base: DepotLocal): VersionReferentielFiscal[] {
   return base
     .interroger<{ contenu_json: string }>(
       'SELECT contenu_json FROM referentiels_fiscaux ORDER BY date_effet ASC',

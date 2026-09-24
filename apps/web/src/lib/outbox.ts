@@ -16,7 +16,7 @@ import {
   type EtatCommande,
   type ResultatCommande,
 } from '@fneplus/core';
-import type { BaseLocale } from './db/base-locale';
+import type { DepotLocal } from './db/depot-local';
 
 interface LigneOutbox {
   id: string;
@@ -33,7 +33,7 @@ interface LigneOutbox {
 }
 
 /** Empile une commande. À appeler DANS la transaction qui modifie l'état local. */
-export function empiler(base: BaseLocale, commande: Commande): void {
+export function empiler(base: DepotLocal, commande: Commande): void {
   base.executer(
     `INSERT INTO outbox (id, type, entreprise_id, terminal_id, hlc, creee_le, charge_json, etat)
      VALUES (?, ?, ?, ?, ?, ?, ?, 'EN_ATTENTE')`,
@@ -49,14 +49,14 @@ export function empiler(base: BaseLocale, commande: Commande): void {
   );
 }
 
-export function compterEnAttente(base: BaseLocale): number {
+export function compterEnAttente(base: DepotLocal): number {
   const lignes = base.interroger<{ n: number }>(
     `SELECT COUNT(*) AS n FROM outbox WHERE etat IN ('EN_ATTENTE', 'EN_COURS')`,
   );
   return lignes[0]?.n ?? 0;
 }
 
-export function compterEchecsDefinitifs(base: BaseLocale): number {
+export function compterEchecsDefinitifs(base: DepotLocal): number {
   const lignes = base.interroger<{ n: number }>(
     `SELECT COUNT(*) AS n FROM outbox WHERE etat = 'ECHEC_DEFINITIF'`,
   );
@@ -69,7 +69,7 @@ export function compterEchecsDefinitifs(base: BaseLocale): number {
  * Trié par date de création : l'ordre d'émission des factures est préservé côté
  * serveur, ce qui garde la chaîne d'intégrité vérifiable sans retri.
  */
-export function prochainLot(base: BaseLocale, taille = 25): LigneOutbox[] {
+export function prochainLot(base: DepotLocal, taille = 25): LigneOutbox[] {
   const maintenant = new Date().toISOString();
   return base.interroger<LigneOutbox>(
     `SELECT * FROM outbox
@@ -81,7 +81,7 @@ export function prochainLot(base: BaseLocale, taille = 25): LigneOutbox[] {
   );
 }
 
-export function marquerEnCours(base: BaseLocale, ids: string[]): void {
+export function marquerEnCours(base: DepotLocal, ids: string[]): void {
   if (ids.length === 0) return;
   const parametres = ids.map(() => '?').join(',');
   base.executer(`UPDATE outbox SET etat = 'EN_COURS' WHERE id IN (${parametres})`, ids);
@@ -96,7 +96,7 @@ export function marquerEnCours(base: BaseLocale, ids: string[]): void {
  * transmis » pendant que la liste affiche le contraire — et c'est précisément
  * sur cet écran que se joue la confiance du commerçant.
  */
-export function appliquerResultats(base: BaseLocale, resultats: ResultatCommande[]): void {
+export function appliquerResultats(base: DepotLocal, resultats: ResultatCommande[]): void {
   base.transaction(() => {
     for (const resultat of resultats) {
       const [commande] = base.interroger<{ type: string; charge_json: string }>(
@@ -136,7 +136,7 @@ export function appliquerResultats(base: BaseLocale, resultats: ResultatCommande
  * DGI ne repasse pas « en file » parce qu'un rejeu tardif a été acquitté.
  */
 function majStatutFacture(
-  base: BaseLocale,
+  base: DepotLocal,
   commande: { type: string; charge_json: string },
   statut: 'EN_FILE_DGI' | 'REJETEE',
   motif?: string,
@@ -163,7 +163,7 @@ function majStatutFacture(
  * Au-delà de MAX_TENTATIVES, elle bascule en échec définitif et remonte à
  * l'utilisateur : on ne réessaie pas indéfiniment en silence.
  */
-export function replanifier(base: BaseLocale, commandeId: string, erreur: string): void {
+export function replanifier(base: DepotLocal, commandeId: string, erreur: string): void {
   const lignes = base.interroger<{ tentatives: number }>(
     'SELECT tentatives FROM outbox WHERE id = ?',
     [commandeId],
@@ -195,7 +195,7 @@ export function replanifier(base: BaseLocale, commandeId: string, erreur: string
  * interrompu (onglet fermé, batterie vide, réseau coupé en plein POST). Elle est
  * renvoyée telle quelle — l'idempotence côté serveur évite le doublon.
  */
-export function recupererCommandesInterrompues(base: BaseLocale): number {
+export function recupererCommandesInterrompues(base: DepotLocal): number {
   const lignes = base.interroger<{ n: number }>(
     `SELECT COUNT(*) AS n FROM outbox WHERE etat = 'EN_COURS'`,
   );
@@ -215,7 +215,7 @@ export function recupererCommandesInterrompues(base: BaseLocale): number {
  * le réseau revient, ou que l'utilisateur demande explicitement l'envoi, les
  * commandes repartent sans attendre.
  */
-export function relancerImmediatement(base: BaseLocale): number {
+export function relancerImmediatement(base: DepotLocal): number {
   const lignes = base.interroger<{ n: number }>(
     `SELECT COUNT(*) AS n FROM outbox
       WHERE etat = 'EN_ATTENTE' AND prochaine_tentative_le IS NOT NULL`,
@@ -228,7 +228,7 @@ export function relancerImmediatement(base: BaseLocale): number {
 }
 
 /** Purge les commandes confirmées anciennes, pour borner la taille de la base. */
-export function purgerConfirmees(base: BaseLocale, joursRetention = 30): number {
+export function purgerConfirmees(base: DepotLocal, joursRetention = 30): number {
   const limite = new Date(Date.now() - joursRetention * 86_400_000).toISOString();
   const avant = base.interroger<{ n: number }>(
     `SELECT COUNT(*) AS n FROM outbox WHERE etat = 'CONFIRMEE' AND creee_le < ?`,

@@ -15,7 +15,7 @@
  * fortement la surface d'injection. À réévaluer au Sprint 6 avec l'audit.
  */
 
-import type { BaseLocale } from './db/base-locale';
+import type { DepotLocal } from './db/depot-local';
 
 export interface SessionTerminal {
   jeton: string;
@@ -35,7 +35,7 @@ export interface SessionTerminal {
 
 const CLE = 'session';
 
-export function lireSession(base: BaseLocale): SessionTerminal | null {
+export function lireSession(base: DepotLocal): SessionTerminal | null {
   const lignes = base.interroger<{ valeur: string }>('SELECT valeur FROM meta WHERE cle = ?', [
     CLE,
   ]);
@@ -49,7 +49,7 @@ export function lireSession(base: BaseLocale): SessionTerminal | null {
   }
 }
 
-export function ecrireSession(base: BaseLocale, session: SessionTerminal): void {
+export function ecrireSession(base: DepotLocal, session: SessionTerminal): void {
   base.executer(
     `INSERT INTO meta (cle, valeur) VALUES (?, ?)
      ON CONFLICT(cle) DO UPDATE SET valeur = excluded.valeur`,
@@ -57,7 +57,7 @@ export function ecrireSession(base: BaseLocale, session: SessionTerminal): void 
   );
 }
 
-export function majSession(base: BaseLocale, champs: Partial<SessionTerminal>): SessionTerminal {
+export function majSession(base: DepotLocal, champs: Partial<SessionTerminal>): SessionTerminal {
   const actuelle = lireSession(base);
   if (!actuelle) throw new Error('Aucune session ouverte sur ce terminal.');
   const fusionnee = { ...actuelle, ...champs };
@@ -72,7 +72,7 @@ export function majSession(base: BaseLocale, champs: Partial<SessionTerminal>): 
  * d'être transmises, et les perdre à la déconnexion serait une faute grave. Elles
  * repartiront à la prochaine connexion du même compte.
  */
-export function effacerSession(base: BaseLocale): void {
+export function effacerSession(base: DepotLocal): void {
   base.executer('DELETE FROM meta WHERE cle = ?', [CLE]);
   base.journaliser('SESSION_FERMEE');
 }
@@ -85,7 +85,7 @@ export function effacerSession(base: BaseLocale): void {
  * lieu de lui allouer une nouvelle réserve de numéros et de laisser un trou de
  * séquence inexpliqué.
  */
-export function empreinteAppareil(base: BaseLocale): string {
+export function empreinteAppareil(base: DepotLocal): string {
   const lignes = base.interroger<{ valeur: string }>('SELECT valeur FROM meta WHERE cle = ?', [
     'empreinte_appareil',
   ]);

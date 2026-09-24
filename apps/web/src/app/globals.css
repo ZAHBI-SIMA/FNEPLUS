@@ -543,3 +543,56 @@
     filter: none;
   }
 }
+
+/* ---------------- À vérifier ---------------- */
+
+/*
+ * Rappel présent sur tous les écrans tant qu'une anomalie subsiste.
+ *
+ * Un problème relégué dans un onglet qu'on n'ouvre jamais se découvre le jour
+ * du contrôle fiscal. Il suit donc le caissier, mais sans bloquer la vente.
+ */
+.fne-rappel-anomalies {
+  display: block;
+  width: 100%;
+  min-height: var(--fne-cible-tactile);
+  padding: var(--fne-esp-3) var(--fne-esp-4);
+  border: none;
+  border-left: 4px solid var(--fne-attente-600);
+  border-radius: var(--fne-rayon-md);
+  background: var(--fne-attente-100);
+  color: var(--fne-attente-600);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fne-anomalie__entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fne-esp-3);
+  margin-bottom: var(--fne-esp-3);
+}
+
+.fne-anomalie__date {
+  font-size: var(--fne-taille-sm);
+  color: var(--fne-texte-faible);
+}
+
+.fne-anomalie__titre {
+  margin: 0 0 var(--fne-esp-2);
+  font-size: var(--fne-taille-md);
+}
+
+.fne-anomalie__detail {
+  margin: 0 0 var(--fne-esp-3);
+  font-size: var(--fne-taille-sm);
+  color: var(--fne-texte-faible);
+}
+
+.fne-anomalie__action {
+  margin: 0 0 var(--fne-esp-3);
+  font-size: var(--fne-taille-sm);
+  font-weight: 600;
+}

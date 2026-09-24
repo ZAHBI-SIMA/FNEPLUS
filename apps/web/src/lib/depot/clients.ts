@@ -15,7 +15,7 @@ import {
   type Client,
   type HorodatageHLC,
 } from '@fneplus/core';
-import type { BaseLocale } from '../db/base-locale';
+import type { DepotLocal } from '../db/depot-local';
 import { empiler } from '../outbox';
 
 export interface SaisieClient {
@@ -45,7 +45,7 @@ export class ErreurClient extends Error {
 }
 
 export function enregistrerClient(
-  base: BaseLocale,
+  base: DepotLocal,
   contexte: { entrepriseId: string; terminalId: string; hlc: HorodatageHLC },
   saisie: SaisieClient,
 ): Client {
@@ -104,7 +104,7 @@ export function enregistrerClient(
 }
 
 export function listerClients(
-  base: BaseLocale,
+  base: DepotLocal,
   entrepriseId: string,
   recherche?: string,
 ): LigneClient[] {
@@ -126,7 +126,7 @@ export function listerClients(
   );
 }
 
-export function compterClients(base: BaseLocale, entrepriseId: string): number {
+export function compterClients(base: DepotLocal, entrepriseId: string): number {
   const lignes = base.interroger<{ n: number }>(
     'SELECT COUNT(*) AS n FROM clients WHERE entreprise_id = ? AND supprime = 0',
     [entrepriseId],
@@ -142,7 +142,7 @@ export function compterClients(base: BaseLocale, entrepriseId: string): number {
  * que le serveur renvoie une version antérieure encore en cache.
  */
 export function appliquerDeltaClients(
-  base: BaseLocale,
+  base: DepotLocal,
   entrepriseId: string,
   clients: {
     id: string;

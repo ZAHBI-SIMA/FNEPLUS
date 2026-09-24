@@ -10,7 +10,8 @@
     "start": "next start --port 3100",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "analyse:poids": "node scripts/mesurer-poids.mjs"
+    "analyse:poids": "node scripts/mesurer-poids.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@fneplus/core": "workspace:*",
@@ -26,6 +27,7 @@
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.9"
   }
 }

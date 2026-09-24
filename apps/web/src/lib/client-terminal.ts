@@ -21,6 +21,7 @@ import type {
   ResultatClients,
   ResultatConnexion,
   ResultatEmission,
+  ResultatAnomalies,
   ResultatProduits,
   ResultatSynchronisation,
 } from './protocole-terminal';
@@ -145,6 +146,18 @@ class ClientTerminal {
 
   listerProduits(recherche?: string): Promise<ResultatProduits> {
     return this.appeler<ResultatProduits>('LISTER_PRODUITS', { recherche });
+  }
+
+  listerAnomalies(): Promise<ResultatAnomalies> {
+    return this.appeler<ResultatAnomalies>('LISTER_ANOMALIES');
+  }
+
+  reessayer(anomalieId: string): Promise<EtatTerminal> {
+    return this.appeler<EtatTerminal>('REESSAYER', { anomalieId });
+  }
+
+  purgerStockage(): Promise<{ commandesPurgees: number; entreesJournalPurgees: number }> {
+    return this.appeler('PURGER_STOCKAGE');
   }
 
   synchroniser(

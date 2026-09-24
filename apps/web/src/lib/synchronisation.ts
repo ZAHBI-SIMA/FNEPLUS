@@ -18,7 +18,7 @@ import {
   type ReponseSynchronisation,
   type ResultatCommande,
 } from '@fneplus/core';
-import type { BaseLocale } from './db/base-locale';
+import type { DepotLocal } from './db/depot-local';
 import { appelerApi, ErreurApi, ErreurReseau } from './api-client';
 import {
   appliquerResultats,
@@ -61,7 +61,7 @@ export interface OptionsSynchronisation {
 }
 
 export async function synchroniser(
-  base: BaseLocale,
+  base: DepotLocal,
   recalerHorloge: (horodatageServeur: number) => void,
   options: OptionsSynchronisation = {},
 ): Promise<ResultatSynchronisation> {

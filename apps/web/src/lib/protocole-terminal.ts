@@ -13,6 +13,7 @@ import type { InfosBaseLocale } from './db/base-locale';
 import type { ResumeFacture, TotauxJour } from './depot/factures';
 import type { LigneClient } from './depot/clients';
 import type { LigneProduit } from './depot/produits';
+import type { Anomalie, EtatStockage } from './depot/a-verifier';
 import type { ResultatSynchronisation } from './synchronisation';
 
 export type ActionTerminal =
@@ -29,6 +30,9 @@ export type ActionTerminal =
   | 'LISTER_CLIENTS'
   | 'ENREGISTRER_PRODUIT'
   | 'LISTER_PRODUITS'
+  | 'LISTER_ANOMALIES'
+  | 'REESSAYER'
+  | 'PURGER_STOCKAGE'
   | 'SYNCHRONISER';
 
 export interface RequeteTerminal {
@@ -65,6 +69,8 @@ export interface EtatTerminal {
   alertePlage: boolean;
   nombreClients: number;
   nombreProduits: number;
+  /** Éléments demandant une intervention humaine. */
+  nombreAnomalies: number;
   /** NCC de l'entreprise, nécessaire au contenu du QR. */
   ncc?: string;
 }
@@ -121,6 +127,8 @@ export interface ChargeProduit {
 }
 
 export type ResultatProduits = LigneProduit[];
+export type ResultatAnomalies = Anomalie[];
+export type { Anomalie, EtatStockage };
 
 export interface ChargeClient {
   id?: string;

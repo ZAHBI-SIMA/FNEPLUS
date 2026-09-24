@@ -19,7 +19,7 @@ import {
   type HorodatageHLC,
   type Produit,
 } from '@fneplus/core';
-import type { BaseLocale } from '../db/base-locale';
+import type { DepotLocal } from '../db/depot-local';
 import { empiler } from '../outbox';
 
 export interface SaisieProduit {
@@ -46,7 +46,7 @@ export class ErreurProduit extends Error {
 }
 
 export function enregistrerProduit(
-  base: BaseLocale,
+  base: DepotLocal,
   contexte: { entrepriseId: string; terminalId: string; hlc: HorodatageHLC },
   saisie: SaisieProduit,
 ): Produit {
@@ -104,7 +104,7 @@ export function enregistrerProduit(
 }
 
 export function listerProduits(
-  base: BaseLocale,
+  base: DepotLocal,
   entrepriseId: string,
   recherche?: string,
 ): LigneProduit[] {
@@ -126,7 +126,7 @@ export function listerProduits(
   );
 }
 
-export function compterProduits(base: BaseLocale, entrepriseId: string): number {
+export function compterProduits(base: DepotLocal, entrepriseId: string): number {
   const lignes = base.interroger<{ n: number }>(
     'SELECT COUNT(*) AS n FROM produits WHERE entreprise_id = ? AND supprime = 0',
     [entrepriseId],
@@ -136,7 +136,7 @@ export function compterProduits(base: BaseLocale, entrepriseId: string): number 
 
 /** Applique le delta descendant reçu du serveur, sans écraser une version locale plus récente. */
 export function appliquerDeltaProduits(
-  base: BaseLocale,
+  base: DepotLocal,
   entrepriseId: string,
   produits: {
     id: string;

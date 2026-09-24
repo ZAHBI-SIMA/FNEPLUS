@@ -25,6 +25,13 @@ import { dernieresFactures, emettreFacture, plageActive, totauxDuJour } from '@/
 import { compterClients, enregistrerClient, listerClients } from '@/lib/depot/clients';
 import { compterProduits, enregistrerProduit, listerProduits } from '@/lib/depot/produits';
 import {
+  compterAnomalies,
+  etatStockage,
+  listerAnomalies,
+  purgerStockage,
+  reessayerCommande,
+} from '@/lib/depot/a-verifier';
+import {
   assurerReserveNumeros,
   libelleAppareilParDefaut,
   ouvrirSessionTerminal,
@@ -87,6 +94,7 @@ async function etatTerminal(): Promise<EtatTerminal> {
       alertePlage: false,
       nombreClients: 0,
       nombreProduits: 0,
+      nombreAnomalies: 0,
     };
   }
 
@@ -110,6 +118,7 @@ async function etatTerminal(): Promise<EtatTerminal> {
     alertePlage: plage ? plageBientotEpuisee(plage) : true,
     nombreClients: compterClients(base, session.entrepriseId),
     nombreProduits: compterProduits(base, session.entrepriseId),
+    nombreAnomalies: compterAnomalies(base, session.terminalId),
     ncc: session.ncc,
   };
 }
@@ -287,6 +296,27 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
       sessionRequise(session);
       const { recherche } = (requete.charge ?? {}) as { recherche?: string };
       return listerProduits(base, session.entrepriseId, recherche);
+    }
+
+    case 'LISTER_ANOMALIES': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      return listerAnomalies(base, session.terminalId);
+    }
+
+    case 'REESSAYER': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      const { anomalieId } = requete.charge as { anomalieId: string };
+      reessayerCommande(base, anomalieId);
+      return etatTerminal();
+    }
+
+    case 'PURGER_STOCKAGE': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      const purge = purgerStockage(base);
+      return { ...purge, stockage: etatStockage(base) };
     }
 
     case 'SYNCHRONISER': {

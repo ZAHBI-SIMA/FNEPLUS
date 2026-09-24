@@ -219,3 +219,77 @@ un document opposable produit par la partie qu'il est censé engager.
 **Bénéfice collatéral.** Une bibliothèque PDF pèse plusieurs centaines de
 kilo-octets. L'éviter sur le terminal préserve le budget de poids, qui reste à
 56 % après l'ajout de l'écran de vente et de l'encodeur QR.
+
+---
+
+## D-009 — Le moteur hors-ligne se teste hors navigateur
+
+**Date :** Sprint 3
+
+**Problème.** Toute la logique qui porte la promesse du produit — émission,
+numérotation, chaînage d'intégrité, outbox, reprise après coupure — ne tournait
+que dans un navigateur, sur SQLite WASM et OPFS. La seule façon de la vérifier
+était de piloter une page à la main. Impossible d'exiger 500 factures et une
+douzaine de scénarios de panne à chaque commit.
+
+**Décision.** Les dépôts dépendent d'une interface `DepotLocal`, pas de
+l'implémentation SQLite WASM. Une seconde implémentation, sur `node:sqlite`,
+applique **exactement les mêmes migrations** et permet d'exécuter les modules de
+production sous Node.
+
+Ce sont donc les vrais modules qui sont testés, pas des doubles qui finiraient
+par diverger du code embarqué. Le seul écart avec la production est le moteur
+SQLite lui-même.
+
+**Bénéfice immédiat.** Le critère d'acceptation du sprint — 500 factures émises
+hors ligne, sans trou, sans doublon, chaîne intacte — s'exécute en moins d'une
+seconde et tourne en intégration continue.
+
+**Bénéfice différé.** Un empaquetage Capacitor, prévu en V2 pour le canal USSD,
+utilisera SQLite natif. Seule l'implémentation changera.
+
+---
+
+## D-010 — La date d'émission vient de l'horloge logique, pas de l'horloge système
+
+**Date :** Sprint 3
+
+**Problème.** Découvert en écrivant les tests d'horloge déréglée : avec
+`Date.now()`, un terminal dont l'horloge est revenue à une date de fabrication ne
+trouve plus aucun référentiel fiscal applicable et **refuse toute vente**. Sur un
+téléphone d'entrée de gamme, retirer la batterie suffit à produire cette
+situation.
+
+Un commerçant bloqué par une pile déchargée, c'est un incident support et une
+journée de chiffre d'affaires perdue.
+
+**Décision.** La date d'émission est prise sur l'horloge hybride, qui porte la
+dérive recalée sur l'heure serveur à chaque synchronisation. Un test vérifie
+qu'un terminal dont l'horloge système est en 2020 émet malgré tout une facture
+correctement datée et correctement taxée.
+
+**Ce que ça ne change pas.** La numérotation n'a jamais dépendu de l'horloge :
+elle vient de la réserve allouée par le serveur. Une horloge fausse ne pouvait
+donc pas créer de trou ni de doublon — un test le fige explicitement.
+
+---
+
+## D-011 — Un incident, une seule entrée dans « à vérifier »
+
+**Date :** Sprint 3
+
+**Problème.** Repéré en testant l'écran dans le navigateur : une facture refusée
+définitivement apparaissait **deux fois** — une fois comme facture à corriger,
+une fois comme commande d'envoi en échec. Le compteur annonçait « 2 éléments »
+pour un seul incident, et les deux cartes donnaient des consignes
+contradictoires : « réessayez » d'un côté, « contactez votre comptable » de
+l'autre.
+
+**Décision.** Une commande `CREER_FACTURE` en échec dont la facture est déjà
+signalée n'est plus listée séparément. On garde l'entrée « facture », la seule
+qui parle au commerçant. Les commandes d'un autre type gardent leur entrée
+propre.
+
+**Principe retenu pour la suite.** Un incident produit une entrée, avec une
+action. Un compteur qui surévalue les problèmes finit par ne plus être regardé,
+ce qui est exactement ce que cet écran doit empêcher.

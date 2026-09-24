@@ -22,6 +22,7 @@
  */
 
 import { MIGRATIONS, VERSION_SCHEMA_CIBLE } from './schema';
+import type { DepotLocal, ValeurSQL } from './depot-local';
 
 export type ModePersistance = 'OPFS' | 'MEMOIRE';
 
@@ -49,8 +50,6 @@ export interface InfosBaseLocale {
   /** Renseigné en mode dégradé : à afficher à l'utilisateur. */
   avertissement?: string;
 }
-
-type ValeurSQL = string | number | null | Uint8Array;
 
 interface Sqlite3Db {
   exec(options: {
@@ -148,7 +147,7 @@ export class ErreurBaseLocale extends Error {
   }
 }
 
-export class BaseLocale {
+export class BaseLocale implements DepotLocal {
   private constructor(
     private readonly db: Sqlite3Db,
     readonly infos: InfosBaseLocale,

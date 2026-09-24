@@ -27,7 +27,7 @@ import {
   type TypeDocument,
   type VersionReferentielFiscal,
 } from '@fneplus/core';
-import type { BaseLocale } from '../db/base-locale';
+import type { DepotLocal } from '../db/depot-local';
 import { empiler } from '../outbox';
 
 export interface ContexteEmission {
@@ -85,7 +85,7 @@ function versPlage(l: LignePlage): PlageNumeros {
 }
 
 /** Plage active du terminal : la plus ancienne non clôturée et non épuisée. */
-export function plageActive(base: BaseLocale, terminalId: string): PlageNumeros | null {
+export function plageActive(base: DepotLocal, terminalId: string): PlageNumeros | null {
   const lignes = base.interroger<LignePlage>(
     `SELECT * FROM plages_numeros
       WHERE terminal_id = ? AND cloturee_le IS NULL AND curseur <= fin
@@ -98,7 +98,7 @@ export function plageActive(base: BaseLocale, terminalId: string): PlageNumeros 
 }
 
 /** Hash de la dernière facture de l'entreprise, pour chaîner la suivante. */
-export function dernierHash(base: BaseLocale, entrepriseId: string): string {
+export function dernierHash(base: DepotLocal, entrepriseId: string): string {
   const lignes = base.interroger<{ hash: string }>(
     `SELECT hash FROM factures
       WHERE entreprise_id = ?
@@ -121,7 +121,7 @@ export class ErreurEmission extends Error {
 /* ------------------------------------------------------------------ */
 
 export async function emettreFacture(
-  base: BaseLocale,
+  base: DepotLocal,
   contexte: ContexteEmission,
   demande: DemandeFacture,
 ): Promise<Facture> {
@@ -132,7 +132,16 @@ export async function emettreFacture(
     );
   }
 
-  const emiseLe = new Date().toISOString();
+  // Date d'émission prise sur l'horloge LOGIQUE, pas sur l'horloge système.
+  //
+  // Sur un téléphone d'entrée de gamme, retirer la batterie suffit à ramener
+  // l'horloge à une date de fabrication. Avec `Date.now()` brut, le terminal se
+  // retrouverait alors sans référentiel fiscal applicable et refuserait toute
+  // vente — un commerçant bloqué par une pile déchargée.
+  //
+  // L'horloge hybride porte la dérive recalée sur l'heure serveur à chaque
+  // synchronisation : elle donne la bonne date même quand l'appareil se trompe.
+  const emiseLe = new Date(contexte.hlc.murale).toISOString();
 
   // 1. Calcul fiscal — avec le référentiel en vigueur à la date d'émission.
   const calcul = calculerFacture(
@@ -274,7 +283,7 @@ export interface ResumeFacture {
 }
 
 export function dernieresFactures(
-  base: BaseLocale,
+  base: DepotLocal,
   entrepriseId: string,
   limite = 10,
 ): ResumeFacture[] {
@@ -294,7 +303,7 @@ export interface TotauxJour {
   tvaCollectee: number;
 }
 
-export function totauxDuJour(base: BaseLocale, entrepriseId: string): TotauxJour {
+export function totauxDuJour(base: DepotLocal, entrepriseId: string): TotauxJour {
   const debut = new Date();
   debut.setHours(0, 0, 0, 0);
 

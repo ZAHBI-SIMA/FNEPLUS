@@ -20,8 +20,9 @@ import { EcranClients } from './EcranClients';
 import { EcranArticles } from './EcranArticles';
 import { EcranVente } from './EcranVente';
 import { RecuFacture } from './RecuFacture';
+import { EcranAVerifier } from './EcranAVerifier';
 
-type Onglet = 'VENTE' | 'ARTICLES' | 'CLIENTS' | 'JOURNAL';
+type Onglet = 'VENTE' | 'ARTICLES' | 'CLIENTS' | 'JOURNAL' | 'A_VERIFIER';
 
 /** La vente est en tête : c'est l'écran ouvert cent fois par jour. */
 const ONGLETS: [Onglet, (etat: EtatTerminal) => string][] = [
@@ -29,6 +30,9 @@ const ONGLETS: [Onglet, (etat: EtatTerminal) => string][] = [
   ['ARTICLES', (e) => `Articles${e.nombreProduits > 0 ? ` (${e.nombreProduits})` : ''}`],
   ['CLIENTS', (e) => `Clients${e.nombreClients > 0 ? ` (${e.nombreClients})` : ''}`],
   ['JOURNAL', () => 'Journal'],
+  // N'apparaît que s'il y a effectivement quelque chose à vérifier : un onglet
+  // toujours vide finit par ne plus être regardé du tout.
+  ['A_VERIFIER', (e) => `À vérifier (${e.nombreAnomalies})`],
 ];
 
 export function TableauDeBordTerminal() {
@@ -194,23 +198,33 @@ export function TableauDeBordTerminal() {
         />
 
         <nav className="fne-onglets" aria-label="Sections">
-          {ONGLETS.map(([cle, libelle]) => (
-            <button
-              key={cle}
-              className={`fne-onglet ${onglet === cle ? 'fne-onglet--actif' : ''}`}
-              onClick={() => {
-                setOnglet(cle);
-                setRecu(null);
-              }}
-              aria-current={onglet === cle ? 'page' : undefined}
-            >
-              {libelle(etat)}
-            </button>
-          ))}
+          {ONGLETS.filter(([cle]) => cle !== 'A_VERIFIER' || etat.nombreAnomalies > 0).map(
+            ([cle, libelle]) => (
+              <button
+                key={cle}
+                className={`fne-onglet ${onglet === cle ? 'fne-onglet--actif' : ''}`}
+                onClick={() => {
+                  setOnglet(cle);
+                  setRecu(null);
+                }}
+                aria-current={onglet === cle ? 'page' : undefined}
+              >
+                {libelle(etat)}
+              </button>
+            ),
+          )}
         </nav>
       </div>
 
       <main className="fne-conteneur fne-contenu">
+        {etat.nombreAnomalies > 0 && onglet !== 'A_VERIFIER' && !recu ? (
+          <button className="fne-rappel-anomalies" onClick={() => setOnglet('A_VERIFIER')}>
+            {etat.nombreAnomalies === 1
+              ? '1 élément demande votre attention'
+              : `${etat.nombreAnomalies} éléments demandent votre attention`}
+          </button>
+        ) : null}
+
         {recu ? (
           <RecuFacture
             resultat={recu}
@@ -228,6 +242,8 @@ export function TableauDeBordTerminal() {
           <EcranArticles surChangement={() => void rafraichir()} />
         ) : onglet === 'CLIENTS' ? (
           <EcranClients surChangement={() => void rafraichir()} />
+        ) : onglet === 'A_VERIFIER' ? (
+          <EcranAVerifier surChangement={setEtat} />
         ) : (
           <>
             <header>
