@@ -9,11 +9,12 @@ import { TerminauxService } from './terminaux/terminaux.service.js';
 import { SyncController } from './sync/sync.controller.js';
 import { SyncService } from './sync/sync.service.js';
 import { ReferentielsModule } from './referentiels/referentiels.controller.js';
+import { DgiModule } from './dgi/dgi.module.js';
 import { GardeAuth } from './commun/auth.garde.js';
 import { SanteController } from './sante.controller.js';
 
 @Module({
-  imports: [DbModule, AuthModule, ReferentielsModule],
+  imports: [DbModule, AuthModule, ReferentielsModule, DgiModule],
   controllers: [
     SanteController,
     // AuthController est déclaré par AuthModule : le redéclarer ici ferait

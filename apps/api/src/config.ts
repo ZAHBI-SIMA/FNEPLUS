@@ -33,6 +33,20 @@ const schema = z.object({
    */
   SMS_FOURNISSEUR: z.enum(['console', 'orange', 'mtn']).default('console'),
 
+  /**
+   * API FNE de la DGI. Pointe par défaut sur le simulateur local tant que
+   * l'accès au bac à sable officiel n'est pas acquis.
+   */
+  DGI_URL: z.string().default('http://localhost:4010'),
+  DGI_CLE_API: z.string().optional(),
+  DGI_DELAI_ATTENTE_MS: z.coerce.number().int().positive().default(20_000),
+  /** Échecs consécutifs avant que le disjoncteur ne coupe. */
+  DGI_SEUIL_DISJONCTEUR: z.coerce.number().int().positive().default(5),
+  /** Durée pendant laquelle le disjoncteur reste ouvert, en millisecondes. */
+  DGI_DUREE_OUVERTURE_MS: z.coerce.number().int().positive().default(30_000),
+
+  REDIS_URL: z.string().default('redis://localhost:6380'),
+
   /** Taille des plages de numéros allouées à un terminal. */
   TAILLE_PLAGE_NUMEROS: z.coerce.number().int().positive().default(500),
 });
@@ -54,6 +68,11 @@ export function chargerConfiguration(source: NodeJS.ProcessEnv = process.env): C
   if (config.NODE_ENV === 'production') {
     if (config.JWT_SECRET.startsWith('secret-de-developpement')) {
       throw new Error('JWT_SECRET doit être défini en production.');
+    }
+    if (config.DGI_URL.includes('localhost')) {
+      throw new Error(
+        'DGI_URL pointe encore sur le simulateur local : la production doit viser l’API réelle de la DGI.',
+      );
     }
     if (config.SMS_FOURNISSEUR === 'console') {
       throw new Error(

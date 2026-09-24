@@ -13,13 +13,19 @@ const { serveur } = await import('./serveur.mjs');
 
 const BASE = 'http://localhost:4099';
 
+/** Schéma sortant, tel que le produit la couche d'anticorruption. */
 const factureValide = (numero = 'ABJ01-2026-000001') => ({
   id: `fac-${numero}`,
   entrepriseId: 'ent-test',
+  ncc: 'CI-TEST-0000001',
   numero,
-  lignes: [{ designation: 'Article', quantite: 1, prixUnitaireHT: 1000, codeTva: 'TVA_NORMAL' }],
+  dateEmission: '2026-06-15T09:00:00.000Z',
+  lignes: [
+    { designation: 'Article', quantite: 1, prixUnitaireHT: 1000, codeTaxation: 'TVA_NORMAL' },
+  ],
   totaux: { totalHT: 1000, totalTVA: 180, totalTTC: 1180 },
-  hash: 'a'.repeat(64),
+  empreinte: 'a'.repeat(64),
+  versionMapping: '2026.01',
 });
 
 async function poster(facture, entetes = {}) {

@@ -293,3 +293,99 @@ propre.
 **Principe retenu pour la suite.** Un incident produit une entrée, avec une
 action. Un compteur qui surévalue les problèmes finit par ne plus être regardé,
 ce qui est exactement ce que cet écran doit empêcher.
+
+---
+
+## D-012 — La file de transmission vit dans PostgreSQL, pas dans Redis
+
+**Date :** Sprint 4
+
+**Problème.** Une file de tâches se met naturellement dans Redis, et BullMQ était
+déjà installé pour cela.
+
+**Décision.** La file de transmission à la DGI est une table PostgreSQL.
+
+**Pourquoi.** Ce ne sont pas des tâches, ce sont des pièces comptables en
+attente. Trois conséquences :
+
+- La file doit survivre à une perte de Redis. Une facture qui disparaît d'une
+  file est une facture jamais transmise, découverte au contrôle fiscal.
+- L'avancement de la file et la mise à jour de la facture doivent se faire dans
+  **la même transaction**. Avec deux systèmes, une facture peut être marquée
+  certifiée sans que la file l'enregistre, ou l'inverse.
+- Une facture entre en file dans la transaction même qui l'enregistre : une
+  facture enregistrée part forcément à la DGI, et une entrée de file désigne
+  forcément une facture existante.
+
+Redis reste utile pour du cache et des compteurs — pas pour ce qui engage
+juridiquement le client.
+
+---
+
+## D-013 — Un rôle dédié, porteur de BYPASSRLS, pour le balayage de la file
+
+**Date :** Sprint 4
+
+**Problème.** Découvert en test, après un diagnostic qui a demandé plusieurs
+tentatives : le connecteur balaie la file pour **toutes** les entreprises, donc
+sans contexte tenant, et ne remontait rien.
+
+La cause : les tables portent `FORCE ROW LEVEL SECURITY`, qui s'applique y
+compris au propriétaire. Une fonction `SECURITY DEFINER` appartenant au
+propriétaire des tables ne contourne donc pas les politiques — contrairement à ce
+que je supposais en écrivant la migration 003.
+
+**Décision.** Un rôle `fneplus_connecteur`, sans connexion possible (`NOLOGIN`),
+porteur de `BYPASSRLS`, propriétaire des seules fonctions de balayage de la file
+et destinataire de droits sur cette seule table.
+
+**Pourquoi pas plus simple.** Affaiblir la RLS sur `file_transmission`, ou donner
+`BYPASSRLS` au rôle applicatif, aurait ouvert un accès global à des tables
+contenant des pièces comptables. Ici la porte est étroite, nommée, et vérifiable
+en une requête : ce rôle ne peut pas se connecter et ne possède que cinq
+fonctions.
+
+**À retenir.** `FORCE ROW LEVEL SECURITY` + `SECURITY DEFINER` ne suffit pas à
+obtenir un contournement. Il faut `BYPASSRLS`, explicitement.
+
+---
+
+## D-014 — Le scellé prouve l'intégrité, pas encore la date
+
+**Date :** Sprint 4
+
+**Problème.** Le cahier des charges demande un archivage horodaté et
+infalsifiable. La chaîne d'empreintes prouve qu'aucune facture n'a été modifiée
+ni supprimée, mais pas qu'elle existait à une date donnée : rien n'empêcherait de
+reconstruire une chaîne entière après coup.
+
+**Décision.** Les scellés sont posés et signés par le serveur (HMAC), et le
+champ `horodatage_qualifie` vaut **faux**. L'API et les tests le disent
+explicitement.
+
+**Pourquoi ne pas faire semblant.** Un horodatage opposable exige une autorité
+tierce (RFC 3161). C'est un contrat à passer, pas une ligne de code. Marquer un
+scellé « qualifié » alors qu'il ne l'est pas exposerait le client à voir son
+archivage rejeté lors d'un contrôle, en croyant être en règle.
+
+**Ce qui reste à faire avant la production :** contractualiser une autorité
+d'horodatage, brancher `jeton_horodatage` sur un vrai jeton RFC 3161, et basculer
+le champ. Rien d'autre ne change : la structure est prête.
+
+---
+
+## D-015 — Le simulateur DGI parle le langage de la DGI, pas le nôtre
+
+**Date :** Sprint 4
+
+**Constat.** Le simulateur, écrit au Sprint 0, validait le modèle **interne**
+(`hash`, `entrepriseId`). Quand la couche d'anticorruption est arrivée, il a
+refusé toutes les factures : elle envoie `empreinte` et `ncc`.
+
+**Décision.** Le simulateur est aligné sur le schéma **sortant**, celui que
+produit la couche de traduction.
+
+**Ce que ça apporte.** Le simulateur vérifie désormais la traduction elle-même.
+Si quelqu'un modifie le mapping sans mettre à jour ce qui est attendu côté DGI,
+les tests d'intégration le signalent — ce qui est précisément le rôle d'une
+couche d'anticorruption : rendre visible le contrat avec l'extérieur.

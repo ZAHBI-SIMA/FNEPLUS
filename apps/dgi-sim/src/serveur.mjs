@@ -81,11 +81,18 @@ const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 function valider(facture, entrepriseId) {
   const motifs = [];
 
+  // Le schéma contrôlé ici est celui produit par la couche d'anticorruption
+  // (`apps/api/src/dgi/anticorruption.ts`), pas le modèle interne de FNE+. Les
+  // deux doivent rester alignés : c'est tout l'intérêt d'avoir une couche de
+  // traduction, et ce simulateur sert justement à le vérifier.
   if (!facture?.numero) {
     motifs.push('Le numéro de facture est absent.');
   }
-  if (!facture?.entrepriseId) {
-    motifs.push('L’identifiant de l’entreprise émettrice est absent.');
+  if (!facture?.ncc) {
+    motifs.push('Le numéro de compte contribuable de l’émetteur est absent.');
+  }
+  if (!facture?.dateEmission) {
+    motifs.push('La date d’émission est absente.');
   }
   if (!Array.isArray(facture?.lignes) || facture.lignes.length === 0) {
     motifs.push('La facture ne comporte aucune ligne.');
@@ -93,8 +100,11 @@ function valider(facture, entrepriseId) {
   if (typeof facture?.totaux?.totalTTC !== 'number') {
     motifs.push('Le total TTC est absent ou n’est pas un montant.');
   }
-  if (!facture?.hash) {
+  if (!facture?.empreinte) {
     motifs.push('L’empreinte d’intégrité de la facture est absente.');
+  }
+  if (!facture?.versionMapping) {
+    motifs.push('La version de mapping n’est pas renseignée.');
   }
 
   const dejaVus = numerosParEntreprise.get(entrepriseId);
@@ -175,7 +185,7 @@ async function enregistrerFacture(requete, reponse) {
       // attendue pour que le connecteur puisse être écrit.
       contenuQR: [
         facture.numero,
-        facture.entrepriseId,
+        facture.ncc,
         facture.totaux?.totalTTC,
         identifiantCertification,
       ].join('|'),

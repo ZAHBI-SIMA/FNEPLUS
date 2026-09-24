@@ -30,6 +30,7 @@ import {
   type ResultatCommande,
 } from '@fneplus/core';
 import { BaseDeDonnees, type TransactionSql } from '../db/db.module.js';
+import { TransmissionService } from '../dgi/transmission.service.js';
 
 export interface DemandeSynchronisation {
   terminalId: string;
@@ -326,7 +327,15 @@ export class SyncService {
       RETURNING id
     `;
 
-    if (insere.length === 0) {
+    if (insere.length > 0) {
+      // Mise en file dans la MÊME transaction que l'enregistrement : une facture
+      // enregistrée part forcément à la DGI, et une entrée de file désigne
+      // forcément une facture existante.
+      await TransmissionService.mettreEnFile(tx, facture.id, entrepriseId);
+      return { commandeId: commande.id, accepte: true };
+    }
+
+    {
       // Le numéro existe déjà. Si c'est la même facture, c'est un rejeu et tout
       // va bien ; si c'est une autre, la réserve de numéros du terminal a été
       // violée et il faut un humain.
@@ -343,8 +352,6 @@ export class SyncService {
         definitif: true,
       };
     }
-
-    return { commandeId: commande.id, accepte: true };
   }
 
   /* ------------------------------------------------------------------ */

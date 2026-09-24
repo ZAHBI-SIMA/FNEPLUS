@@ -19,7 +19,7 @@ l'architecture découle de ce choix.
 | 1      | Identité, auth OTP, référentiels clients/produits, multi-tenant | ✅ terminé |
 | 2      | Écran de vente, catalogue articles, QR et reçu imprimable       | ✅ terminé |
 | 3      | Hors-ligne durci : tests adverses, écran « à vérifier »         | ✅ terminé |
-| 4      | Connecteur DGI et archivage légal                               | à venir    |
+| 4      | Connecteur DGI, file de transmission, archivage et export       | ✅ terminé |
 | 5      | Mobile money, suivi ARF, tableau de bord                        | à venir    |
 | 6      | Durcissement, pilote terrain à Abidjan                          | à venir    |
 
@@ -143,6 +143,10 @@ conformité acquise.
 abandonné, réserve de numéros épuisée : chaque anomalie dit ce qui s'est passé et
 quoi faire. Une file d'attente qui grossit en silence se découvre le jour du
 contrôle fiscal.
+
+**Une facture en file n'en sort que certifiée ou explicitement rejetée.** La file
+de transmission vit dans PostgreSQL, dans la même transaction que la facture : ni
+une panne de cache ni un redémarrage ne peuvent perdre une pièce comptable.
 
 **Le budget de poids est vérifié en intégration continue.** Moins de 200 Ko de JavaScript au
 premier chargement. Un budget qu'on ne mesure pas est un budget qu'on dépasse — chaque

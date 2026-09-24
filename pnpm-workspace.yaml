@@ -4,3 +4,7 @@ packages:
 
 allowBuilds:
   esbuild: true
+  # Accélérateur natif optionnel de msgpackr (via BullMQ). Refusé : il impose
+  # une compilation native à chaque installation, pour un gain de sérialisation
+  # sans portée sur nos volumes. msgpackr fonctionne en JavaScript pur sans lui.
+  msgpackr-extract: false
