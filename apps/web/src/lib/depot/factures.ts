@@ -21,6 +21,7 @@ import {
   uuidv7,
   type Facture,
   type HorodatageHLC,
+  type LigneCalculee,
   type LigneFacture,
   type PlageNumeros,
   type RegimeFiscal,
@@ -120,11 +121,17 @@ export class ErreurEmission extends Error {
 /* Émission                                                            */
 /* ------------------------------------------------------------------ */
 
+export interface ResultatEmissionDepot {
+  facture: Facture;
+  /** Lignes avec leurs montants calculés — ce qu'affiche le détail de la facture. */
+  lignesCalculees: LigneCalculee[];
+}
+
 export async function emettreFacture(
   base: DepotLocal,
   contexte: ContexteEmission,
   demande: DemandeFacture,
-): Promise<Facture> {
+): Promise<ResultatEmissionDepot> {
   const plage = plageActive(base, contexte.terminalId);
   if (!plage) {
     throw new ErreurEmission(
@@ -266,7 +273,7 @@ export async function emettreFacture(
     base.journaliser('FACTURE_EMISE', { id: facture.id, numero: facture.numero });
   });
 
-  return facture;
+  return { facture, lignesCalculees: calcul.lignes };
 }
 
 /* ------------------------------------------------------------------ */

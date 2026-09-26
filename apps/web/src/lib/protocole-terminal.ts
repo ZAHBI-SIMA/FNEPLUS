@@ -106,15 +106,28 @@ export interface ResultatConnexion {
 export interface ChargeEmission {
   clientNom: string;
   clientId?: string;
+  /** Affichée sur le reçu ; ne fait pas partie du document légal archivé. */
+  clientAdresse?: string;
   lignes: Omit<LigneFacture, 'id'>[];
+}
+
+/** Ligne du reçu, telle qu'affichée dans le tableau de la facture normalisée. */
+export interface LigneRecu {
+  designation: string;
+  quantite: number;
+  prixUnitaireTTC: number;
+  montantTTC: number;
 }
 
 export interface ResultatEmission {
   factureId: string;
   numero: string;
   totalTTC: number;
+  totalTVA: number;
   emiseLe: string;
   clientNom: string;
+  clientAdresse?: string;
+  lignes: LigneRecu[];
   /** Contenu à encoder dans le QR remis au client. */
   contenuQR: string;
   /** Vrai tant que la DGI n'a pas certifié la facture. */

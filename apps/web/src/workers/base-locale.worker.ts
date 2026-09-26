@@ -229,7 +229,7 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
       const charge = requete.charge as ChargeEmission;
       const depart = performance.now();
 
-      const facture = await emettreFacture(
+      const { facture, lignesCalculees } = await emettreFacture(
         base,
         {
           entrepriseId: session.entrepriseId,
@@ -253,11 +253,22 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
         factureId: facture.id,
         numero: facture.numero,
         totalTTC: facture.totaux.totalTTC,
+        totalTVA: facture.totaux.totalTVA,
         emiseLe: facture.emiseLe,
         clientNom: facture.clientNom,
+        ...(charge.clientAdresse ? { clientAdresse: charge.clientAdresse } : {}),
         contenuQR: qr.contenu,
         qrProvisoire: qr.provisoire,
         dureeMs: performance.now() - depart,
+        // PU TTC dérivé du montant de ligne, pas ressaisi : le tableau du reçu
+        // doit rester la conséquence du calcul fiscal, jamais une deuxième
+        // source de vérité sur le prix.
+        lignes: lignesCalculees.map((l) => ({
+          designation: l.designation,
+          quantite: l.quantite,
+          prixUnitaireTTC: l.quantite > 0 ? Math.round(l.montantTTC / l.quantite) : 0,
+          montantTTC: l.montantTTC,
+        })),
       };
       return resultat;
     }

@@ -152,6 +152,7 @@ export function EcranVente({
       const resultat = await terminal().emettreFacture({
         clientNom: clientChoisi?.nom ?? 'Client comptant',
         ...(clientChoisi ? { clientId: clientChoisi.id } : {}),
+        ...(clientChoisi?.adresse ? { clientAdresse: clientChoisi.adresse } : {}),
         lignes: panier.map(({ cle: _cle, ...ligne }) => ligne),
       });
       setPanier([]);

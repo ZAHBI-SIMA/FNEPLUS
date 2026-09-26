@@ -66,9 +66,11 @@ const contexte = () => ({
 async function emettre(n = 1): Promise<Facture[]> {
   const factures: Facture[] = [];
   for (let i = 0; i < n; i++) {
-    factures.push(
-      await emettreFacture(base, contexte(), { clientNom: `Client ${i}`, lignes: LIGNES }),
-    );
+    const { facture } = await emettreFacture(base, contexte(), {
+      clientNom: `Client ${i}`,
+      lignes: LIGNES,
+    });
+    factures.push(facture);
   }
   return factures;
 }
@@ -331,7 +333,7 @@ describe('horloge déréglée', () => {
 
     expect(recalage.deriveExcessive).toBe(true);
 
-    const facture = await emettreFacture(
+    const { facture } = await emettreFacture(
       base,
       { ...contexte(), hlc: horlogeFausse.tick() },
       { clientNom: 'Client', lignes: LIGNES },
@@ -348,7 +350,7 @@ describe('horloge déréglée', () => {
     const h1 = new HorlogeHLC(TERMINAL_TEST, () => Date.UTC(2026, 0, 1));
     const h2 = new HorlogeHLC(TERMINAL_TEST, () => Date.UTC(2026, 11, 31));
 
-    const a = await emettreFacture(
+    const { facture: a } = await emettreFacture(
       base,
       { ...contexte(), hlc: h1.tick() },
       {
@@ -356,7 +358,7 @@ describe('horloge déréglée', () => {
         lignes: LIGNES,
       },
     );
-    const b = await emettreFacture(
+    const { facture: b } = await emettreFacture(
       base,
       { ...contexte(), hlc: h2.tick() },
       {

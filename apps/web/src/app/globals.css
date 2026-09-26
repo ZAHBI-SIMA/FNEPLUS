@@ -575,19 +575,74 @@
   text-align: center;
 }
 
-.fne-recu__entete {
+/*
+ * Reprend le modèle papier de la facture normalisée : en-tête « Facture n° »,
+ * encadré des mentions obligatoires à gauche, QR à droite, puis Date/Client/
+ * Adresse, tableau des lignes, total. Empilé plutôt que côte à côte sous
+ * ~360 px — un ticket de caisse hérite de cette même mise en page.
+ */
+.fne-recu__titre {
   display: flex;
-  flex-direction: column;
-  gap: var(--fne-esp-1);
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--fne-esp-2);
   padding-bottom: var(--fne-esp-3);
-  border-bottom: 1px dashed var(--fne-bordure);
+  border-bottom: 2px solid var(--fne-texte);
+  font-size: var(--fne-taille-lg);
+  font-weight: 700;
+}
+
+.fne-recu__double {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fne-esp-4);
+  margin-block: var(--fne-esp-4);
+}
+
+.fne-recu__mentions {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: var(--fne-esp-3);
+  border: 1px solid var(--fne-bordure);
+  border-radius: var(--fne-rayon-md);
+  text-align: left;
+}
+
+.fne-recu__mentions > p {
+  margin: 0 0 var(--fne-esp-1);
   font-size: var(--fne-taille-sm);
 }
 
-.fne-recu__numero {
-  margin-block: var(--fne-esp-3);
-  font-size: var(--fne-taille-lg);
+.fne-recu__mentions-titre {
+  font-size: var(--fne-taille-xs);
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fne-texte-faible);
+}
+
+.fne-recu__mentions-raison {
+  font-weight: 700;
+  font-size: var(--fne-taille-md);
+}
+
+.fne-recu__statut {
+  font-weight: 600;
+}
+
+.fne-recu__statut--succes {
+  color: var(--fne-succes-600);
+}
+
+.fne-recu__statut--attente {
+  color: var(--fne-attente-600);
+}
+
+.fne-recu__qr {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  margin: 0 auto;
 }
 
 .fne-recu__infos {
@@ -614,14 +669,47 @@
   text-align: right;
 }
 
-.fne-recu__total {
-  font-size: var(--fne-taille-lg);
+.fne-recu__tableau {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--fne-esp-4);
+  font-size: var(--fne-taille-sm);
+  text-align: left;
 }
 
-.fne-recu__qr {
+.fne-recu__tableau th,
+.fne-recu__tableau td {
+  padding: var(--fne-esp-2);
+  border-bottom: 1px solid var(--fne-bordure);
+}
+
+.fne-recu__tableau th {
+  font-size: var(--fne-taille-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--fne-texte-faible);
+  border-bottom: 2px solid var(--fne-texte);
+}
+
+.fne-recu__tableau td:nth-child(3),
+.fne-recu__tableau td:nth-child(4),
+.fne-recu__tableau td:nth-child(5),
+.fne-recu__tableau th:nth-child(3),
+.fne-recu__tableau th:nth-child(4),
+.fne-recu__tableau th:nth-child(5) {
+  text-align: right;
+}
+
+.fne-recu__total-ligne {
   display: flex;
-  justify-content: center;
-  margin-block: var(--fne-esp-4);
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--fne-esp-3);
+  padding-top: var(--fne-esp-3);
+  margin-bottom: var(--fne-esp-3);
+  border-top: 2px solid var(--fne-texte);
+  font-size: var(--fne-taille-lg);
+  font-weight: 700;
 }
 
 .fne-recu__pied {
@@ -641,8 +729,8 @@
  * Impression.
  *
  * Seul le reçu sort sur le papier : ni navigation, ni bandeau réseau, ni
- * boutons. Les couleurs sont forcées au noir sur blanc — une imprimante
- * thermique de boutique n'imprime qu'en monochrome, et un QR gris clair ne se
+ * boutons. Les couleurs sont forcées au noir sur blanc — un imprimé
+ * potentiellement monochrome ne doit rien perdre, et un QR gris clair ne se
  * scanne pas.
  */
 @media print {
@@ -666,9 +754,23 @@
     border: none;
     box-shadow: none;
     padding: 0;
-    max-width: 80mm;
+    /*
+     * Le tableau des lignes a besoin de place pour cinq colonnes lisibles :
+     * contrairement à l'ancien ticket, ce document suit le format A4 de la
+     * facture normalisée papier, pas une largeur d'imprimante thermique.
+     */
+    max-width: 190mm;
     margin: 0 auto;
     color: #000;
+  }
+
+  .fne-recu__mentions {
+    border-color: #000;
+  }
+
+  .fne-recu__tableau th,
+  .fne-recu__tableau td {
+    border-color: #000;
   }
 
   .fne-qr__image svg {
