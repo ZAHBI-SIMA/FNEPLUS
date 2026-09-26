@@ -567,29 +567,33 @@
   gap: var(--fne-esp-4);
 }
 
+/*
+ * Le document reprend l'apparence du carnet de factures papier — grille à
+ * lignes noires, coins droits, fond blanc — plutôt que le style de carte
+ * arrondie du reste de l'application. Couleurs figées en dur (pas de jetons
+ * de thème) : un commerçant qui reconnaît son carnet habituel ne doit pas le
+ * voir changer d'aspect selon le mode sombre de son téléphone, pas plus que
+ * la version imprimée n'en aurait un.
+ */
 .fne-recu-document {
-  background: var(--fne-surface);
-  border: 1px solid var(--fne-bordure);
-  border-radius: var(--fne-rayon-lg);
+  background: #ffffff;
+  border: 2px solid #000000;
+  border-radius: 0;
   padding: var(--fne-esp-5);
   text-align: center;
+  color: #000000;
 }
 
-/*
- * Reprend le modèle papier de la facture normalisée : en-tête « Facture n° »,
- * encadré des mentions obligatoires à gauche, QR à droite, puis Date/Client/
- * Adresse, tableau des lignes, total. Empilé plutôt que côte à côte sous
- * ~360 px — un ticket de caisse hérite de cette même mise en page.
- */
 .fne-recu__titre {
   display: flex;
   align-items: baseline;
   justify-content: center;
   gap: var(--fne-esp-2);
   padding-bottom: var(--fne-esp-3);
-  border-bottom: 2px solid var(--fne-texte);
+  border-bottom: 2px solid #000000;
   font-size: var(--fne-taille-lg);
   font-weight: 700;
+  text-transform: uppercase;
 }
 
 .fne-recu__double {
@@ -603,8 +607,8 @@
   flex: 1 1 200px;
   min-width: 0;
   padding: var(--fne-esp-3);
-  border: 1px solid var(--fne-bordure);
-  border-radius: var(--fne-rayon-md);
+  border: 1px solid #000000;
+  border-radius: 0;
   text-align: left;
 }
 
@@ -618,7 +622,6 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--fne-texte-faible);
 }
 
 .fne-recu__mentions-raison {
@@ -645,6 +648,10 @@
   margin: 0 auto;
 }
 
+.fne-recu__qr .fne-qr__legende {
+  color: #000000;
+}
+
 .fne-recu__infos {
   margin: 0 0 var(--fne-esp-4);
   text-align: left;
@@ -655,11 +662,10 @@
   justify-content: space-between;
   gap: var(--fne-esp-3);
   padding-block: var(--fne-esp-2);
-  border-bottom: 1px dashed var(--fne-bordure);
+  border-bottom: 1px solid #000000;
 }
 
 .fne-recu__infos dt {
-  color: var(--fne-texte-faible);
   font-size: var(--fne-taille-sm);
 }
 
@@ -669,26 +675,28 @@
   text-align: right;
 }
 
+/* Grille complète — chaque cellule bordée, y compris entre colonnes vides —
+   plutôt qu'un simple filet horizontal : c'est la lecture d'un carnet réglé. */
 .fne-recu__tableau {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: var(--fne-esp-4);
   font-size: var(--fne-taille-sm);
   text-align: left;
+  border: 1px solid #000000;
 }
 
 .fne-recu__tableau th,
 .fne-recu__tableau td {
   padding: var(--fne-esp-2);
-  border-bottom: 1px solid var(--fne-bordure);
+  border: 1px solid #000000;
 }
 
 .fne-recu__tableau th {
   font-size: var(--fne-taille-xs);
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: var(--fne-texte-faible);
-  border-bottom: 2px solid var(--fne-texte);
+  font-weight: 700;
 }
 
 .fne-recu__tableau td:nth-child(3),
@@ -707,15 +715,15 @@
   gap: var(--fne-esp-3);
   padding-top: var(--fne-esp-3);
   margin-bottom: var(--fne-esp-3);
-  border-top: 2px solid var(--fne-texte);
+  border-top: 2px solid #000000;
   font-size: var(--fne-taille-lg);
   font-weight: 700;
+  text-transform: uppercase;
 }
 
 .fne-recu__pied {
   margin: 0;
   font-size: var(--fne-taille-xs);
-  color: var(--fne-texte-faible);
 }
 
 .fne-recu__mesure {
@@ -751,26 +759,14 @@
   }
 
   .fne-recu-document {
-    border: none;
-    box-shadow: none;
-    padding: 0;
     /*
      * Le tableau des lignes a besoin de place pour cinq colonnes lisibles :
      * contrairement à l'ancien ticket, ce document suit le format A4 de la
-     * facture normalisée papier, pas une largeur d'imprimante thermique.
+     * facture normalisée papier, pas une largeur d'imprimante thermique. La
+     * grille à lignes noires, elle, est la même à l'écran et sur le papier.
      */
     max-width: 190mm;
     margin: 0 auto;
-    color: #000;
-  }
-
-  .fne-recu__mentions {
-    border-color: #000;
-  }
-
-  .fne-recu__tableau th,
-  .fne-recu__tableau td {
-    border-color: #000;
   }
 
   .fne-qr__image svg {
