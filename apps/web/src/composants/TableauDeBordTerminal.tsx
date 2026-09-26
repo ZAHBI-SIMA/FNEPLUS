@@ -36,10 +36,28 @@ const ONGLETS: [Onglet, (etat: EtatTerminal) => string][] = [
   ['A_VERIFIER', (e) => `À vérifier (${e.nombreAnomalies})`],
 ];
 
+/**
+ * Fonctionnalités du plan de développement pas encore construites.
+ *
+ * Grisées plutôt qu'absentes : un commerçant ou un testeur voit d'un coup
+ * d'œil tout ce que couvrira l'application, pas seulement ce qui existe déjà.
+ * Sprints et jalons repris de `docs/PLAN-DEVELOPPEMENT.md`.
+ */
+const FONCTIONNALITES_PREVUES: { libelle: string; jalon: string }[] = [
+  { libelle: 'Rapports et KPI', jalon: 'Sprint 6' },
+  { libelle: 'Aide et support', jalon: 'Sprint 6' },
+  { libelle: 'Multi-boutiques', jalon: 'V2' },
+  { libelle: 'Assistant WhatsApp', jalon: 'V2' },
+  { libelle: 'OCR de reçus', jalon: 'V2' },
+  { libelle: 'Assistant fiscal IA', jalon: 'V2' },
+  { libelle: 'Financement sur factures', jalon: 'V3' },
+];
+
 export function TableauDeBordTerminal() {
   const reseau = useEtatReseau();
   const [etat, setEtat] = useState<EtatTerminal | null>(null);
   const [onglet, setOnglet] = useState<Onglet>('VENTE');
+  const [menuOuvert, setMenuOuvert] = useState(false);
   const [recu, setRecu] = useState<ResultatEmission | null>(null);
   const [erreurFatale, setErreurFatale] = useState<string | null>(null);
   const [messageSync, setMessageSync] = useState<string | null>(null);
@@ -151,6 +169,7 @@ export function TableauDeBordTerminal() {
     setEtat(await terminal().deconnexion());
     setOnglet('VENTE');
     setRecu(null);
+    setMenuOuvert(false);
   }, []);
 
   if (erreurFatale) {
@@ -198,169 +217,213 @@ export function TableauDeBordTerminal() {
           derniereSyncReussie={session.derniereSync}
         />
 
-        <nav className="fne-onglets" aria-label="Sections">
-          {ONGLETS.filter(([cle]) => cle !== 'A_VERIFIER' || etat.nombreAnomalies > 0).map(
-            ([cle, libelle]) => (
-              <button
-                key={cle}
-                className={`fne-onglet ${onglet === cle ? 'fne-onglet--actif' : ''}`}
-                onClick={() => {
-                  setOnglet(cle);
-                  setRecu(null);
-                }}
-                aria-current={onglet === cle ? 'page' : undefined}
-              >
-                {libelle(etat)}
-              </button>
-            ),
-          )}
-        </nav>
+        {/* Sous 768 px, la barre latérale est un tiroir : ce bouton l'ouvre.
+            Masqué au-delà par CSS, où elle reste toujours visible. */}
+        <button
+          type="button"
+          className="fne-bouton-menu"
+          onClick={() => setMenuOuvert(true)}
+          aria-label="Ouvrir le menu"
+        >
+          ☰ Menu
+        </button>
       </div>
 
-      <main className="fne-conteneur fne-contenu">
-        {etat.nombreAnomalies > 0 && onglet !== 'A_VERIFIER' && !recu ? (
-          <button className="fne-rappel-anomalies" onClick={() => setOnglet('A_VERIFIER')}>
-            {etat.nombreAnomalies === 1
-              ? '1 élément demande votre attention'
-              : `${etat.nombreAnomalies} éléments demandent votre attention`}
-          </button>
+      <div className="fne-corps">
+        {menuOuvert ? (
+          <button
+            type="button"
+            className="fne-barre-laterale__fond fne-sans-impression"
+            aria-label="Fermer le menu"
+            onClick={() => setMenuOuvert(false)}
+          />
         ) : null}
 
-        {recu ? (
-          <RecuFacture
-            resultat={recu}
-            raisonSociale={session.raisonSociale}
-            ncc={etat.ncc ?? ''}
-            surFermer={() => setRecu(null)}
-          />
-        ) : onglet === 'VENTE' ? (
-          <EcranVente
-            regimeFiscal={session.regimeFiscal}
-            surEmission={setRecu}
-            surChangement={() => void rafraichir()}
-          />
-        ) : onglet === 'ARTICLES' ? (
-          <EcranArticles surChangement={() => void rafraichir()} />
-        ) : onglet === 'CLIENTS' ? (
-          <EcranClients surChangement={() => void rafraichir()} />
-        ) : onglet === 'A_VERIFIER' ? (
-          <EcranAVerifier surChangement={setEtat} />
-        ) : (
-          <>
-            <header>
-              <h1 className="fne-titre-page">{session.raisonSociale}</h1>
-              <p className="fne-sous-titre">
-                {session.nom} · {libelleRegime(session.regimeFiscal)}
-              </p>
-            </header>
+        <aside
+          className={`fne-barre-laterale fne-sans-impression ${menuOuvert ? 'fne-barre-laterale--ouverte' : ''}`}
+          aria-label="Sections"
+        >
+          <div className="fne-barre-laterale__groupe">
+            <p className="fne-barre-laterale__titre">Fonctionnalités</p>
+            {ONGLETS.filter(([cle]) => cle !== 'A_VERIFIER' || etat.nombreAnomalies > 0).map(
+              ([cle, libelle]) => (
+                <button
+                  key={cle}
+                  className={`fne-nav-lien ${onglet === cle ? 'fne-nav-lien--actif' : ''}`}
+                  onClick={() => {
+                    setOnglet(cle);
+                    setRecu(null);
+                    setMenuOuvert(false);
+                  }}
+                  aria-current={onglet === cle ? 'page' : undefined}
+                >
+                  {libelle(etat)}
+                </button>
+              ),
+            )}
+          </div>
 
-            {etat.infos.avertissement ? (
-              <Alerte ton="attente">{etat.infos.avertissement}</Alerte>
-            ) : null}
-
-            {etat.alertePlage ? (
-              <Alerte ton="attente">
-                Réserve de numéros bientôt épuisée ({etat.numerosRestants} restants). Connectez-vous
-                quelques secondes pour en recharger une.
-              </Alerte>
-            ) : null}
-
-            {messageSync ? <Alerte ton="info">{messageSync}</Alerte> : null}
-
-            <div className="fne-grille-stats">
-              <Carte titre="Factures du jour">
-                <p className="fne-stat__valeur">{etat.totaux.nombre}</p>
-              </Carte>
-              <Carte titre="Encaissé TTC">
-                <p className="fne-stat__valeur">
-                  {formaterXOF(etat.totaux.chiffreAffairesTTC, { avecDevise: false })}{' '}
-                  <span className="fne-stat__unite">F CFA</span>
-                </p>
-              </Carte>
-              <Carte titre="TVA collectée">
-                <p className="fne-stat__valeur">
-                  {formaterXOF(etat.totaux.tvaCollectee, { avecDevise: false })}{' '}
-                  <span className="fne-stat__unite">F CFA</span>
-                </p>
-              </Carte>
-            </div>
-
-            <TuileARF />
-
-            <Carte titre="État du terminal">
-              <LigneInfo
-                libelle="Stockage des factures"
-                valeur={
-                  etat.infos.mode === 'OPFS' ? (
-                    <Badge ton="succes">Persistant sur l’appareil</Badge>
-                  ) : (
-                    <Badge ton="erreur">Mémoire seule</Badge>
-                  )
-                }
-              />
-              <LigneInfo
-                libelle="Conservation garantie"
-                valeur={
-                  etat.infos.stockagePersistant ? (
-                    <Badge ton="succes">Oui</Badge>
-                  ) : (
-                    <Badge ton="attente">Non garantie</Badge>
-                  )
-                }
-              />
-              <LigneInfo libelle="Numéros en réserve" valeur={etat.numerosRestants} numerique />
-              <LigneInfo libelle="En attente d’envoi" valeur={etat.enAttente} numerique />
-              {etat.echecs > 0 ? (
-                <LigneInfo
-                  libelle="À corriger"
-                  valeur={<Badge ton="erreur">{etat.echecs}</Badge>}
-                />
-              ) : null}
-              <LigneInfo
-                libelle="Qualité réseau"
-                valeur={reseau.enLigne ? (reseau.qualite ?? 'connecté') : 'aucune'}
-              />
-            </Carte>
-
-            <Carte titre="Dernières factures">
-              {etat.factures.length === 0 ? (
-                <p style={{ margin: 0, color: 'var(--fne-texte-faible)' }}>
-                  Aucune facture émise sur ce terminal.
-                </p>
-              ) : (
-                <div className="fne-pile">
-                  {etat.factures.map((f) => (
-                    <div key={f.id} className="fne-facture">
-                      <span className="fne-facture__numero">{f.numero}</span>
-                      <span className="fne-facture__montant">{formaterXOF(f.total_ttc)}</span>
-                      <span className="fne-facture__client">{f.client_nom}</span>
-                      <span className="fne-facture__statut">
-                        <Badge ton={tonPourStatutFacture(f.statut)}>
-                          {libelleStatutFacture(f.statut)}
-                        </Badge>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Carte>
-
-            <div className="fne-actions">
-              <Bouton
-                variante="secondaire"
-                pleineLargeur
-                onClick={() => void lancerSync()}
-                disabled={synchronisation}
+          <div className="fne-barre-laterale__groupe">
+            <p className="fne-barre-laterale__titre">À venir</p>
+            {FONCTIONNALITES_PREVUES.map((f) => (
+              <span
+                key={f.libelle}
+                className="fne-nav-lien fne-nav-lien--desactive"
+                aria-disabled="true"
+                title={`Prévu au plan de développement — ${f.jalon}`}
               >
-                {synchronisation ? 'Envoi en cours…' : 'Envoyer maintenant'}
-              </Bouton>
-              <Bouton variante="discret" onClick={() => void deconnecter()}>
-                Se déconnecter
-              </Bouton>
-            </div>
-          </>
-        )}
-      </main>
+                {f.libelle}
+                <span className="fne-badge-venir">{f.jalon}</span>
+              </span>
+            ))}
+          </div>
+        </aside>
+
+        <main className="fne-conteneur fne-contenu">
+          {etat.nombreAnomalies > 0 && onglet !== 'A_VERIFIER' && !recu ? (
+            <button className="fne-rappel-anomalies" onClick={() => setOnglet('A_VERIFIER')}>
+              {etat.nombreAnomalies === 1
+                ? '1 élément demande votre attention'
+                : `${etat.nombreAnomalies} éléments demandent votre attention`}
+            </button>
+          ) : null}
+
+          {recu ? (
+            <RecuFacture
+              resultat={recu}
+              raisonSociale={session.raisonSociale}
+              ncc={etat.ncc ?? ''}
+              surFermer={() => setRecu(null)}
+            />
+          ) : onglet === 'VENTE' ? (
+            <EcranVente
+              regimeFiscal={session.regimeFiscal}
+              surEmission={setRecu}
+              surChangement={() => void rafraichir()}
+            />
+          ) : onglet === 'ARTICLES' ? (
+            <EcranArticles surChangement={() => void rafraichir()} />
+          ) : onglet === 'CLIENTS' ? (
+            <EcranClients surChangement={() => void rafraichir()} />
+          ) : onglet === 'A_VERIFIER' ? (
+            <EcranAVerifier surChangement={setEtat} />
+          ) : (
+            <>
+              <header>
+                <h1 className="fne-titre-page">{session.raisonSociale}</h1>
+                <p className="fne-sous-titre">
+                  {session.nom} · {libelleRegime(session.regimeFiscal)}
+                </p>
+              </header>
+
+              {etat.infos.avertissement ? (
+                <Alerte ton="attente">{etat.infos.avertissement}</Alerte>
+              ) : null}
+
+              {etat.alertePlage ? (
+                <Alerte ton="attente">
+                  Réserve de numéros bientôt épuisée ({etat.numerosRestants} restants).
+                  Connectez-vous quelques secondes pour en recharger une.
+                </Alerte>
+              ) : null}
+
+              {messageSync ? <Alerte ton="info">{messageSync}</Alerte> : null}
+
+              <div className="fne-grille-stats">
+                <Carte titre="Factures du jour">
+                  <p className="fne-stat__valeur">{etat.totaux.nombre}</p>
+                </Carte>
+                <Carte titre="Encaissé TTC">
+                  <p className="fne-stat__valeur">
+                    {formaterXOF(etat.totaux.chiffreAffairesTTC, { avecDevise: false })}{' '}
+                    <span className="fne-stat__unite">F CFA</span>
+                  </p>
+                </Carte>
+                <Carte titre="TVA collectée">
+                  <p className="fne-stat__valeur">
+                    {formaterXOF(etat.totaux.tvaCollectee, { avecDevise: false })}{' '}
+                    <span className="fne-stat__unite">F CFA</span>
+                  </p>
+                </Carte>
+              </div>
+
+              <TuileARF />
+
+              <Carte titre="État du terminal">
+                <LigneInfo
+                  libelle="Stockage des factures"
+                  valeur={
+                    etat.infos.mode === 'OPFS' ? (
+                      <Badge ton="succes">Persistant sur l’appareil</Badge>
+                    ) : (
+                      <Badge ton="erreur">Mémoire seule</Badge>
+                    )
+                  }
+                />
+                <LigneInfo
+                  libelle="Conservation garantie"
+                  valeur={
+                    etat.infos.stockagePersistant ? (
+                      <Badge ton="succes">Oui</Badge>
+                    ) : (
+                      <Badge ton="attente">Non garantie</Badge>
+                    )
+                  }
+                />
+                <LigneInfo libelle="Numéros en réserve" valeur={etat.numerosRestants} numerique />
+                <LigneInfo libelle="En attente d’envoi" valeur={etat.enAttente} numerique />
+                {etat.echecs > 0 ? (
+                  <LigneInfo
+                    libelle="À corriger"
+                    valeur={<Badge ton="erreur">{etat.echecs}</Badge>}
+                  />
+                ) : null}
+                <LigneInfo
+                  libelle="Qualité réseau"
+                  valeur={reseau.enLigne ? (reseau.qualite ?? 'connecté') : 'aucune'}
+                />
+              </Carte>
+
+              <Carte titre="Dernières factures">
+                {etat.factures.length === 0 ? (
+                  <p style={{ margin: 0, color: 'var(--fne-texte-faible)' }}>
+                    Aucune facture émise sur ce terminal.
+                  </p>
+                ) : (
+                  <div className="fne-pile">
+                    {etat.factures.map((f) => (
+                      <div key={f.id} className="fne-facture">
+                        <span className="fne-facture__numero">{f.numero}</span>
+                        <span className="fne-facture__montant">{formaterXOF(f.total_ttc)}</span>
+                        <span className="fne-facture__client">{f.client_nom}</span>
+                        <span className="fne-facture__statut">
+                          <Badge ton={tonPourStatutFacture(f.statut)}>
+                            {libelleStatutFacture(f.statut)}
+                          </Badge>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Carte>
+
+              <div className="fne-actions">
+                <Bouton
+                  variante="secondaire"
+                  pleineLargeur
+                  onClick={() => void lancerSync()}
+                  disabled={synchronisation}
+                >
+                  {synchronisation ? 'Envoi en cours…' : 'Envoyer maintenant'}
+                </Bouton>
+                <Bouton variante="discret" onClick={() => void deconnecter()}>
+                  Se déconnecter
+                </Bouton>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
     </>
   );
 }

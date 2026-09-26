@@ -153,33 +153,149 @@
   justify-self: end;
 }
 
-/* Onglets de navigation */
+/* Barre latérale de navigation */
 
-.fne-onglets {
+/*
+ * Un tiroir plein écran sous 768 px : une barre latérale fixe à côté d'un
+ * contenu de 327 px de large (375 px − marges) ne laisserait plus rien pour la
+ * vente elle-même. Au-delà, elle redevient statique et reste toujours visible
+ * — conformément au principe mobile-first du design system.
+ */
+.fne-corps {
+  flex: 1;
   display: flex;
-  gap: var(--fne-esp-1);
-  padding: var(--fne-esp-2) var(--fne-esp-4) 0;
-  background: var(--fne-surface);
-  border-bottom: 1px solid var(--fne-bordure);
-  overflow-x: auto;
+  align-items: flex-start;
+  position: relative;
 }
 
-.fne-onglet {
+.fne-corps > main {
   flex: 1;
+  min-width: 0;
+}
+
+.fne-bouton-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--fne-esp-2);
   min-height: var(--fne-cible-tactile);
-  padding: var(--fne-esp-3) var(--fne-esp-4);
-  border: none;
-  border-bottom: 3px solid transparent;
-  background: transparent;
+  margin: var(--fne-esp-2) var(--fne-esp-4) 0;
+  padding: var(--fne-esp-2) var(--fne-esp-3);
+  border: 1px solid var(--fne-bordure);
+  border-radius: var(--fne-rayon-md);
+  background: var(--fne-surface);
   font-weight: 600;
-  color: var(--fne-texte-faible);
+  color: var(--fne-texte);
   cursor: pointer;
+}
+
+.fne-barre-laterale__fond {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgb(0 0 0 / 45%);
+  border: none;
+  padding: 0;
+}
+
+.fne-barre-laterale {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 50;
+  width: min(280px, 82vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fne-esp-5);
+  padding: var(--fne-esp-4);
+  background: var(--fne-surface);
+  border-right: 1px solid var(--fne-bordure);
+  overflow-y: auto;
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+}
+
+.fne-barre-laterale--ouverte {
+  transform: translateX(0);
+}
+
+.fne-barre-laterale__titre {
+  margin: 0 0 var(--fne-esp-2);
+  padding: 0 var(--fne-esp-3);
+  font-size: var(--fne-taille-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fne-texte-faible);
+}
+
+.fne-barre-laterale__groupe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fne-esp-1);
+}
+
+.fne-nav-lien {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fne-esp-2);
+  width: 100%;
+  min-height: var(--fne-cible-tactile);
+  padding: var(--fne-esp-3);
+  border: none;
+  border-radius: var(--fne-rayon-md);
+  background: transparent;
+  color: var(--fne-texte);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fne-nav-lien:hover {
+  background: var(--fne-neutre-100);
+}
+
+.fne-nav-lien--actif {
+  background: var(--fne-primaire-50);
+  color: var(--fne-primaire-600);
+}
+
+/* Fonctionnalité prévue au plan de développement, pas encore construite. */
+.fne-nav-lien--desactive {
+  color: var(--fne-texte-faible);
+  cursor: default;
+}
+
+.fne-nav-lien--desactive:hover {
+  background: transparent;
+}
+
+.fne-badge-venir {
+  flex-shrink: 0;
+  padding: 0.1em 0.6em;
+  border-radius: 999px;
+  background: var(--fne-neutre-100);
+  color: var(--fne-texte-faible);
+  font-size: var(--fne-taille-xs);
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.fne-onglet--actif {
-  color: var(--fne-primaire-600);
-  border-bottom-color: var(--fne-primaire-600);
+@media (min-width: 768px) {
+  .fne-bouton-menu,
+  .fne-barre-laterale__fond {
+    display: none;
+  }
+
+  .fne-barre-laterale {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    width: 240px;
+    flex-shrink: 0;
+    height: 100dvh;
+    transform: none;
+    border-right: 1px solid var(--fne-bordure);
+  }
 }
 
 /* Formulaires */
@@ -517,7 +633,8 @@
   .fne-sans-impression,
   .fne-entete,
   .fne-pied,
-  .fne-onglets,
+  .fne-barre-laterale,
+  .fne-bouton-menu,
   .fne-bandeau-reseau,
   .fne-alerte,
   .fne-recu__mesure {
