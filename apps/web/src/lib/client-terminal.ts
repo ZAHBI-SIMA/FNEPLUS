@@ -13,8 +13,11 @@ import type {
   ChargeClient,
   ChargeConnexion,
   ChargeEmission,
+  ChargeEncaissementEspeces,
   ChargeInscription,
+  ChargePaiementMobile,
   ChargeProduit,
+  EtatReglementLocal,
   EtatTerminal,
   ReponseTerminal,
   RequeteTerminal,
@@ -22,8 +25,10 @@ import type {
   ResultatConnexion,
   ResultatEmission,
   ResultatAnomalies,
+  ResultatPaiementMobile,
   ResultatProduits,
   ResultatSynchronisation,
+  SituationARF,
 } from './protocole-terminal';
 
 export class ErreurTerminal extends Error {
@@ -164,6 +169,22 @@ class ClientTerminal {
     options: { ignorerDelais?: boolean } = {},
   ): Promise<ResultatSynchronisation & { etat: EtatTerminal }> {
     return this.appeler('SYNCHRONISER', options);
+  }
+
+  encaisserEspeces(charge: ChargeEncaissementEspeces): Promise<EtatReglementLocal> {
+    return this.appeler<EtatReglementLocal>('ENCAISSER_ESPECES', charge);
+  }
+
+  etatReglement(factureId: string): Promise<EtatReglementLocal | null> {
+    return this.appeler<EtatReglementLocal | null>('ETAT_REGLEMENT', { factureId });
+  }
+
+  demanderPaiementMobile(charge: ChargePaiementMobile): Promise<ResultatPaiementMobile> {
+    return this.appeler<ResultatPaiementMobile>('DEMANDER_PAIEMENT_MOBILE', charge);
+  }
+
+  situationARF(): Promise<SituationARF> {
+    return this.appeler<SituationARF>('SITUATION_ARF');
   }
 }
 

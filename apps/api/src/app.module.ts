@@ -10,11 +10,13 @@ import { SyncController } from './sync/sync.controller.js';
 import { SyncService } from './sync/sync.service.js';
 import { ReferentielsModule } from './referentiels/referentiels.controller.js';
 import { DgiModule } from './dgi/dgi.module.js';
+import { PaiementsModule } from './paiements/paiements.module.js';
+import { ArfModule } from './arf/arf.module.js';
 import { GardeAuth } from './commun/auth.garde.js';
 import { SanteController } from './sante.controller.js';
 
 @Module({
-  imports: [DbModule, AuthModule, ReferentielsModule, DgiModule],
+  imports: [DbModule, AuthModule, ReferentielsModule, DgiModule, PaiementsModule, ArfModule],
   controllers: [
     SanteController,
     // AuthController est déclaré par AuthModule : le redéclarer ici ferait

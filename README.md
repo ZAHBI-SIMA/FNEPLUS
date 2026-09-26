@@ -20,7 +20,7 @@ l'architecture découle de ce choix.
 | 2      | Écran de vente, catalogue articles, QR et reçu imprimable       | ✅ terminé |
 | 3      | Hors-ligne durci : tests adverses, écran « à vérifier »         | ✅ terminé |
 | 4      | Connecteur DGI, file de transmission, archivage et export       | ✅ terminé |
-| 5      | Mobile money, suivi ARF, tableau de bord                        | à venir    |
+| 5      | Mobile money, suivi ARF, tableau de bord                        | ✅ terminé |
 | 6      | Durcissement, pilote terrain à Abidjan                          | à venir    |
 
 ---
@@ -151,6 +151,23 @@ une panne de cache ni un redémarrage ne peuvent perdre une pièce comptable.
 **Le budget de poids est vérifié en intégration continue.** Moins de 200 Ko de JavaScript au
 premier chargement. Un budget qu'on ne mesure pas est un budget qu'on dépasse — chaque
 kilo-octet est payé en données mobiles par l'utilisateur final.
+
+**L'encaissement suit deux chemins distincts, selon leur rapport au réseau.**
+Les espèces s'enregistrent hors ligne, dans la même transaction que la facture.
+Le mobile money exige le réseau dès la demande — ouvrir une transaction chez un
+prestataire externe n'a pas de sens hors ligne — et se règle plus tard, côté
+serveur, sur notification du prestataire.
+
+**Le règlement mobile money fait autorité côté serveur, jamais côté terminal.**
+Un webhook ne touche jamais l'appareil : l'écran de caisse interroge donc le
+serveur pour son état de règlement quand le réseau est là, et ne retombe sur
+l'état local que hors ligne. Sans ce recalage, un paiement pourtant confirmé
+resterait affiché comme impayé indéfiniment — un bug réel, trouvé en faisant
+fonctionner l'application plutôt qu'en lisant ses tests.
+
+**L'alerte de conformité (ARF) se déclenche avant l'échéance, pas le jour même.**
+Le commerçant est prévenu 30 jours avant l'expiration de son attestation, pas
+seulement une fois qu'il est déjà bloqué.
 
 ---
 

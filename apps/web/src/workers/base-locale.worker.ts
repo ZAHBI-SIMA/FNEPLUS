@@ -32,6 +32,12 @@ import {
   reessayerCommande,
 } from '@/lib/depot/a-verifier';
 import {
+  appliquerReglementServeur,
+  enregistrerPaiementEspeces,
+  etatReglementLocal,
+  type SaisiePaiementEspeces,
+} from '@/lib/depot/paiements';
+import {
   assurerReserveNumeros,
   libelleAppareilParDefaut,
   ouvrirSessionTerminal,
@@ -45,12 +51,15 @@ import type {
   ChargeProduit,
   ChargeConnexion,
   ChargeEmission,
+  ChargePaiementMobile,
   ChargeInscription,
   EtatTerminal,
   ReponseTerminal,
   RequeteTerminal,
   ResultatConnexion,
   ResultatEmission,
+  ResultatPaiementMobile,
+  SituationARF,
 } from '@/lib/protocole-terminal';
 
 /**
@@ -343,6 +352,88 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
       }
 
       return { ...resultat, etat: await etatTerminal() };
+    }
+
+    case 'ENCAISSER_ESPECES': {
+      const session = lireSession(base);
+      sessionRequise(session);
+
+      return enregistrerPaiementEspeces(
+        base,
+        {
+          entrepriseId: session.entrepriseId,
+          terminalId: session.terminalId,
+          hlc: horlogeDe(session).tick(),
+        },
+        requete.charge as SaisiePaiementEspeces,
+      );
+    }
+
+    case 'ETAT_REGLEMENT': {
+      const { factureId } = requete.charge as { factureId: string };
+
+      // Un règlement mobile money se constate côté serveur (le webhook du
+      // prestataire ne touche jamais l'appareil) : quand le réseau est là, le
+      // serveur fait foi et son résultat est répercuté en local. Hors ligne,
+      // ou si l'appel échoue, l'état local — toujours à jour pour un
+      // règlement en espèces — reste la meilleure réponse disponible.
+      const session = lireSession(base);
+      if (session) {
+        try {
+          const distant = await appelerApi<{
+            factureId: string;
+            totalTTC: number;
+            montantRegle: number;
+            regleeLe?: string;
+          } | null>(`/api/v1/paiements/factures/${factureId}`, { jeton: session.jeton });
+          if (distant) return appliquerReglementServeur(base, distant);
+        } catch {
+          // Réseau indisponible ou serveur en erreur : on retombe sur le local.
+        }
+      }
+
+      return etatReglementLocal(base, factureId);
+    }
+
+    case 'DEMANDER_PAIEMENT_MOBILE': {
+      // Exige le réseau : cette opération appelle directement l'API, qui elle-
+      // même sollicite un prestataire externe. Il n'y a rien à mettre en file
+      // hors ligne — une demande de paiement n'a de sens qu'immédiate, et le
+      // client doit pouvoir régler dans la minute qui suit.
+      const session = lireSession(base);
+      sessionRequise(session);
+
+      // La facture vient peut-être d'être émise hors ligne et n'a pas encore
+      // atteint le serveur (la synchronisation de fond tourne au plus toutes
+      // les 60 s) : sans ce coup de pouce, l'API répondrait « facture
+      // introuvable » alors que le caissier vient tout juste de l'émettre.
+      // Le réseau est de toute façon requis pour la suite de cette opération.
+      await synchroniser(
+        base,
+        (horodatageServeur) => horlogeDe(session).recaler(horodatageServeur),
+        {
+          ignorerDelais: true,
+        },
+      );
+
+      const charge = requete.charge as ChargePaiementMobile;
+      const resultat = await appelerApi<ResultatPaiementMobile>('/api/v1/paiements', {
+        methode: 'POST',
+        jeton: session.jeton,
+        corps: {
+          factureId: charge.factureId,
+          moyen: charge.moyen,
+          montant: charge.montant,
+          ...(charge.telephone ? { telephone: charge.telephone } : {}),
+        },
+      });
+      return resultat;
+    }
+
+    case 'SITUATION_ARF': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      return appelerApi<SituationARF>('/api/v1/arf/situation', { jeton: session.jeton });
     }
 
     default:

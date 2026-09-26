@@ -10,8 +10,15 @@ async function demarrer(): Promise<void> {
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
+    // `rawBody: true` : le webhook de paiement vérifie une signature HMAC sur
+    // les octets exacts envoyés par le prestataire. Un corps reconstruit après
+    // désérialisation JSON (ordre des clés, espacement) ne redonnerait pas la
+    // même signature que celle calculée par l'émetteur.
     new FastifyAdapter({ trustProxy: true, bodyLimit: 2 * 1024 * 1024 }),
-    { logger: config.NODE_ENV === 'production' ? ['error', 'warn', 'log'] : undefined },
+    {
+      logger: config.NODE_ENV === 'production' ? ['error', 'warn', 'log'] : undefined,
+      rawBody: true,
+    },
   );
 
   // La PWA est servie depuis une autre origine en développement. En production,

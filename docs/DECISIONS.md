@@ -389,3 +389,131 @@ produit la couche de traduction.
 Si quelqu'un modifie le mapping sans mettre à jour ce qui est attendu côté DGI,
 les tests d'intégration le signalent — ce qui est précisément le rôle d'une
 couche d'anticorruption : rendre visible le contrat avec l'extérieur.
+
+---
+
+## D-016 — Encaissement : deux chemins, deux disponibilités réseau
+
+**Date :** Sprint 5
+
+**Constat.** Le cahier des charges demande d'encaisser en espèces et en mobile
+money, mais ces deux moyens n'ont pas la même relation au réseau : l'espèces se
+constate immédiatement, en main, sans tiers ; le mobile money suppose d'ouvrir
+une demande chez un prestataire externe, ce qui exige le réseau au moment même
+de la demande.
+
+**Décision.** Deux chemins séparés plutôt qu'une abstraction commune :
+
+- **Espèces** (`enregistrerPaiementEspeces`) écrit en local et empile une
+  commande d'outbox dans la même transaction que la facture, exactement comme
+  l'émission elle-même — fonctionne hors ligne, sans exception.
+- **Mobile money** (`DEMANDER_PAIEMENT_MOBILE`) appelle l'API directement,
+  échoue proprement si le terminal est hors ligne, et ne passe jamais par
+  l'outbox : une demande de paiement n'a de sens qu'immédiate.
+
+**Pourquoi pas une seule commande générique.** Une commande « ENCAISSER » unique
+aurait dû se comporter différemment selon le moyen choisi, ce qui aurait
+déplacé la branche espèces/mobile money dans la couche de synchronisation — le
+mauvais endroit pour une décision qui ne dépend que du moyen de paiement.
+
+---
+
+## D-017 — Le webhook de paiement réutilise le rôle `fneplus_connecteur`
+
+**Date :** Sprint 5
+
+**Problème.** Le webhook du prestataire mobile money ne porte aucun contexte
+tenant : il ne connaît que sa propre référence de transaction, pas l'entreprise
+concernée.
+
+**Décision.** Plutôt que d'inventer un nouveau mécanisme, réutilisation du
+rôle `fneplus_connecteur` (porteur de `BYPASSRLS`, introduit en [[D-013]] pour
+la file de transmission DGI) et d'une fonction `SECURITY DEFINER`
+(`fneplus_paiement_par_reference`) qui lui appartient, pour retrouver le
+paiement sans session tenant.
+
+**Pourquoi.** Le problème est identique à celui de la file DGI : un processus
+d'arrière-plan doit lire à travers les entreprises sans qu'aucune ne lui soit
+jamais donnée en clair. La solution qui a déjà fait ses preuves s'applique sans
+modification — une porte étroite, nommée, plutôt qu'un nouvel affaiblissement
+de la RLS.
+
+---
+
+## D-018 — Bug trouvé en démonstration : la demande mobile money peut devancer
+
+la synchronisation de la facture
+
+**Date :** Sprint 5
+
+**Problème.** Découvert en testant l'application réellement (« lance l'app »),
+pas par les tests automatisés : émettre une facture puis cliquer aussitôt sur
+« Orange Money » renvoie _Internal server error_ — _Facture introuvable_. La
+facture existe bien, mais seulement dans la base locale du terminal ; elle
+n'atteint le serveur que par la synchronisation de fond, qui tourne au plus
+toutes les 60 secondes. La demande de paiement mobile money, elle, appelle
+l'API immédiatement ([[D-016]]) et ne trouve donc rien côté serveur.
+
+C'est exactement le scénario le plus probable en caisse réelle : le client
+paie tout de suite après avoir vu le total.
+
+**Décision.** Avant d'appeler l'API de demande de paiement, le worker force une
+synchronisation (`synchroniser(..., { ignorerDelais: true })`). Le réseau est de
+toute façon requis pour la suite de l'opération : ce coup de pouce ne coûte rien
+et ferme la fenêtre de course.
+
+**À retenir.** Un test automatisé qui crée la facture directement en base ne
+peut pas voir ce bug — il suppose la synchronisation déjà faite. Seul un
+parcours complet, à la vitesse d'un vrai caissier, l'a révélé.
+
+---
+
+## D-019 — Bug trouvé en démonstration : le rapprochement automatique ne
+
+rapprochait rien
+
+**Date :** Sprint 5
+
+**Problème.** Plus grave que [[D-018]], trouvé juste après l'avoir corrigé : une
+fois la demande de paiement acceptée, le webhook du prestataire confirmait bien
+le règlement côté serveur (`paiements.statut = REGLEE` en base Postgres), mais
+l'écran de caisse continuait d'afficher « reste à devoir » indéfiniment. Le
+panneau interroge `ETAT_REGLEMENT` toutes les 4 secondes, mais ce gestionnaire
+ne lisait que la base SQLite locale — qu'aucun mécanisme ne mettait à jour, le
+webhook ne touchant jamais l'appareil. Contrairement aux clients et produits,
+qui ont un delta descendant ([[D-011]] pour le principe), le règlement n'en
+avait pas.
+
+**Décision.** `ETAT_REGLEMENT` interroge désormais le serveur
+(`GET /api/v1/paiements/factures/:id`, source de vérité pour un règlement qui
+peut avoir eu lieu hors de l'appareil) quand une session existe, et répercute le
+résultat dans la base locale (`appliquerReglementServeur`). Hors ligne, ou si
+l'appel échoue, l'état local reste la meilleure réponse disponible — dégradation
+sans blocage, comme partout ailleurs dans l'application.
+
+**Pourquoi ne pas avoir vu ça dans les tests.** Les tests d'intégration API
+vérifient que le webhook met bien à jour Postgres — ce qui est vrai et suffisant
+de leur point de vue. Aucun test ne rejoue le parcours complet terminal → API →
+webhook → terminal, parce que la base locale du terminal n'existe que dans le
+navigateur. C'est la démonstration dans un vrai navigateur, pas la suite de
+tests, qui a mis ce trou en évidence.
+
+---
+
+## D-020 — L'alerte ARF se déclenche avant l'échéance, pas le jour même
+
+**Date :** Sprint 5
+
+**Constat.** Le cahier des charges est explicite : le commerçant doit être
+prévenu **avant** que son attestation n'expire, pas le découvrir le jour où
+elle n'est plus valide.
+
+**Décision.** `ArfService.situation()` calcule un statut `BIENTOT_EXPIREE` dès
+que l'échéance tombe à 30 jours ou moins, avec un message qui invite à
+renouveler — distinct d'`EXPIREE`, dont le message dit explicitement que la
+facturation est bloquée. Une révocation manuelle (contrôle fiscal en cours,
+etc.) prime sur la date, quelle qu'elle soit.
+
+**Vérifié en démonstration.** Une attestation à 15 jours de l'échéance affiche
+bien « Bientôt expirée — 15 jours restants » sur la tuile du tableau de bord,
+sans action de l'utilisateur.

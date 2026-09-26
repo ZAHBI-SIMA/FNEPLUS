@@ -177,6 +177,31 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 2,
+    nom: 'encaissement',
+    sql: `
+      -- État de règlement porté par la facture : ce que lit l'écran de vente
+      -- sans avoir à agréger les paiements à chaque affichage.
+      ALTER TABLE factures ADD COLUMN montant_regle INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE factures ADD COLUMN reglee_le TEXT;
+
+      CREATE TABLE IF NOT EXISTS paiements (
+        id                TEXT PRIMARY KEY,
+        entreprise_id     TEXT NOT NULL,
+        facture_id        TEXT NOT NULL REFERENCES factures(id) ON DELETE CASCADE,
+        moyen             TEXT NOT NULL,
+        montant           INTEGER NOT NULL,
+        statut            TEXT NOT NULL DEFAULT 'EN_ATTENTE',
+        reference_externe TEXT,
+        lien_paiement     TEXT,
+        telephone         TEXT,
+        demande_le        TEXT NOT NULL,
+        regle_le          TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_paiements_facture ON paiements(facture_id);
+    `,
+  },
 ];
 
 export const VERSION_SCHEMA_CIBLE = MIGRATIONS[MIGRATIONS.length - 1]!.version;

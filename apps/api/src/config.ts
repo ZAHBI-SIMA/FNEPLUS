@@ -49,6 +49,24 @@ const schema = z.object({
 
   /** Taille des plages de numéros allouées à un terminal. */
   TAILLE_PLAGE_NUMEROS: z.coerce.number().int().positive().default(500),
+
+  /**
+   * Agrégateur mobile money (Orange Money, MTN, Wave, Moov). Pointe par défaut
+   * sur le simulateur local tant que l'accès à un agrégateur réel n'est pas
+   * acquis (point bloquant n° 4 du plan de développement).
+   */
+  MOMO_URL: z.string().default('http://localhost:4020'),
+  MOMO_CLE_API: z.string().optional(),
+  /** Secret de signature des webhooks de paiement, partagé avec le prestataire. */
+  MOMO_SECRET: z.string().default('secret-momo-de-developpement'),
+  MOMO_DELAI_ATTENTE_MS: z.coerce.number().int().positive().default(15_000),
+
+  /**
+   * Origine publique de l'API, utilisée pour construire l'URL de webhook
+   * communiquée au prestataire de paiement. Doit être joignable depuis
+   * l'extérieur : `localhost` ne convient qu'en développement.
+   */
+  API_URL_PUBLIQUE: z.string().default('http://localhost:4001'),
 });
 
 export type Configuration = z.infer<typeof schema>;
@@ -77,6 +95,21 @@ export function chargerConfiguration(source: NodeJS.ProcessEnv = process.env): C
     if (config.SMS_FOURNISSEUR === 'console') {
       throw new Error(
         'SMS_FOURNISSEUR ne peut pas rester « console » en production : les codes OTP seraient écrits dans les logs.',
+      );
+    }
+    if (config.MOMO_URL.includes('localhost')) {
+      throw new Error(
+        'MOMO_URL pointe encore sur le simulateur local : la production doit viser un agrégateur réel.',
+      );
+    }
+    if (config.MOMO_SECRET.startsWith('secret-momo-de-developpement')) {
+      throw new Error(
+        'MOMO_SECRET doit être défini en production, avec le secret fourni par le prestataire.',
+      );
+    }
+    if (config.API_URL_PUBLIQUE.includes('localhost')) {
+      throw new Error(
+        'API_URL_PUBLIQUE pointe sur localhost : le prestataire de paiement ne pourrait pas nous notifier.',
       );
     }
   }

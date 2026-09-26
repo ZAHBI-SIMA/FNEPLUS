@@ -3,6 +3,7 @@
 import { Alerte, Bouton } from '@fneplus/ui';
 import { formaterXOF } from '@fneplus/core';
 import { CodeQR } from './CodeQR';
+import { PanneauEncaissement } from './PanneauEncaissement';
 import type { ResultatEmission } from '@/lib/protocole-terminal';
 
 /**
@@ -79,6 +80,10 @@ export function RecuFacture({
       <p className="fne-recu__mesure">
         Émise en <strong>{resultat.dureeMs.toFixed(0)} ms</strong>, sans appel réseau.
       </p>
+
+      <div className="fne-sans-impression">
+        <PanneauEncaissement factureId={resultat.factureId} />
+      </div>
 
       <div className="fne-actions fne-sans-impression">
         <Bouton pleineLargeur onClick={() => window.print()}>

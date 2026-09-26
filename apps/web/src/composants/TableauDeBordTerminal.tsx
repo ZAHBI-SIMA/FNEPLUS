@@ -21,6 +21,7 @@ import { EcranArticles } from './EcranArticles';
 import { EcranVente } from './EcranVente';
 import { RecuFacture } from './RecuFacture';
 import { EcranAVerifier } from './EcranAVerifier';
+import { TuileARF } from './TuileARF';
 
 type Onglet = 'VENTE' | 'ARTICLES' | 'CLIENTS' | 'JOURNAL' | 'A_VERIFIER';
 
@@ -283,6 +284,8 @@ export function TableauDeBordTerminal() {
                 </p>
               </Carte>
             </div>
+
+            <TuileARF />
 
             <Carte titre="État du terminal">
               <LigneInfo

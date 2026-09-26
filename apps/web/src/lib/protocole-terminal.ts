@@ -14,6 +14,7 @@ import type { ResumeFacture, TotauxJour } from './depot/factures';
 import type { LigneClient } from './depot/clients';
 import type { LigneProduit } from './depot/produits';
 import type { Anomalie, EtatStockage } from './depot/a-verifier';
+import type { EtatReglementLocal } from './depot/paiements';
 import type { ResultatSynchronisation } from './synchronisation';
 
 export type ActionTerminal =
@@ -33,7 +34,11 @@ export type ActionTerminal =
   | 'LISTER_ANOMALIES'
   | 'REESSAYER'
   | 'PURGER_STOCKAGE'
-  | 'SYNCHRONISER';
+  | 'SYNCHRONISER'
+  | 'ENCAISSER_ESPECES'
+  | 'DEMANDER_PAIEMENT_MOBILE'
+  | 'ETAT_REGLEMENT'
+  | 'SITUATION_ARF';
 
 export interface RequeteTerminal {
   id: number;
@@ -141,3 +146,52 @@ export interface ChargeClient {
 
 export type ResultatClients = LigneClient[];
 export type { ResultatSynchronisation };
+
+/* ------------------------------------------------------------------ */
+/* Encaissement                                                         */
+/* ------------------------------------------------------------------ */
+
+export type MoyenPaiementTerminal = 'ESPECES' | 'ORANGE_MONEY' | 'MTN_MOMO' | 'WAVE' | 'MOOV_MONEY';
+
+export interface ChargeEncaissementEspeces {
+  factureId: string;
+  montant: number;
+}
+
+export interface ChargePaiementMobile {
+  factureId: string;
+  moyen: Exclude<MoyenPaiementTerminal, 'ESPECES'>;
+  montant: number;
+  telephone?: string;
+}
+
+/**
+ * Demande de paiement mobile money créée chez le prestataire.
+ *
+ * Exige le réseau : contrairement à l'émission d'une facture, cette opération
+ * appelle directement l'API et échoue proprement si le terminal est hors ligne
+ * — il n'y a rien à mettre en file, la demande n'a de sens qu'immédiate.
+ */
+export interface ResultatPaiementMobile {
+  id: string;
+  statut: string;
+  lienPaiement?: string;
+  reference?: string;
+}
+
+export type { EtatReglementLocal };
+
+/* ------------------------------------------------------------------ */
+/* ARF                                                                  */
+/* ------------------------------------------------------------------ */
+
+export type StatutARF = 'A_JOUR' | 'BIENTOT_EXPIREE' | 'EXPIREE' | 'AUCUNE' | 'REVOQUEE';
+
+export interface SituationARF {
+  statut: StatutARF;
+  numero?: string;
+  delivreeLe?: string;
+  expireLe?: string;
+  joursAvantExpiration?: number;
+  message: string;
+}

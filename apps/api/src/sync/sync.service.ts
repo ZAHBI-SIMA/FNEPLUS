@@ -31,6 +31,7 @@ import {
 } from '@fneplus/core';
 import { BaseDeDonnees, type TransactionSql } from '../db/db.module.js';
 import { TransmissionService } from '../dgi/transmission.service.js';
+import { PaiementsService, type MoyenPaiement } from '../paiements/paiements.service.js';
 
 export interface DemandeSynchronisation {
   terminalId: string;
@@ -150,14 +151,7 @@ export class SyncService {
       case 'CREER_FACTURE':
         return this.creerFacture(tx, entrepriseId, commande);
       case 'ENREGISTRER_PAIEMENT':
-        // Traité au Sprint 5, avec l'encaissement mobile money. Refuser
-        // temporairement vaut mieux qu'accepter en silence sans rien écrire.
-        return {
-          commandeId: commande.id,
-          accepte: false,
-          motif: 'L’enregistrement des paiements n’est pas encore disponible.',
-          definitif: false,
-        };
+        return this.enregistrerPaiement(tx, entrepriseId, commande);
     }
   }
 
@@ -246,6 +240,46 @@ export class SyncService {
        WHERE id = ${commande.charge.plageId} AND cloturee_le IS NULL
     `;
     return { commandeId: commande.id, accepte: true };
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Paiements                                                            */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Règlement constaté sur le terminal hors ligne (espèces, ou confirmation
+   * mobile money lue sur l'écran du client sans passer par notre webhook).
+   *
+   * Ne concerne que ce que le caissier a lui-même constaté : un paiement mobile
+   * money demandé et suivi via notre système passe par la route REST dédiée
+   * (`POST /api/v1/paiements`), qui exige le réseau puisqu'elle interroge un
+   * prestataire externe.
+   */
+  private async enregistrerPaiement(
+    tx: TransactionSql,
+    entrepriseId: string,
+    commande: Extract<Commande, { type: 'ENREGISTRER_PAIEMENT' }>,
+  ): Promise<ResultatCommande> {
+    const resultat = await PaiementsService.enregistrerReglementDirect(
+      tx,
+      entrepriseId,
+      commande.id,
+      {
+        factureId: commande.charge.factureId,
+        montant: commande.charge.montant,
+        moyen: commande.charge.moyen as MoyenPaiement,
+        ...(commande.charge.referenceExterne
+          ? { referenceExterne: commande.charge.referenceExterne }
+          : {}),
+      },
+    );
+
+    return {
+      commandeId: commande.id,
+      accepte: resultat.accepte,
+      ...(resultat.motif ? { motif: resultat.motif } : {}),
+      ...(resultat.definitif !== undefined ? { definitif: resultat.definitif } : {}),
+    };
   }
 
   /* ------------------------------------------------------------------ */
