@@ -22,18 +22,37 @@ import { EcranVente } from './EcranVente';
 import { RecuFacture } from './RecuFacture';
 import { EcranAVerifier } from './EcranAVerifier';
 import { TuileARF } from './TuileARF';
+import {
+  IconeAide,
+  IconeArticles,
+  IconeAssistantIA,
+  IconeAssistantWhatsApp,
+  IconeAVerifier,
+  IconeClients,
+  IconeFinancement,
+  IconeJournal,
+  IconeMultiBoutiques,
+  IconeOCR,
+  IconeRapports,
+  IconeVente,
+} from './IconesNavigation';
 
 type Onglet = 'VENTE' | 'ARTICLES' | 'CLIENTS' | 'JOURNAL' | 'A_VERIFIER';
+type ComposantIcone = typeof IconeVente;
 
 /** La vente est en tête : c'est l'écran ouvert cent fois par jour. */
-const ONGLETS: [Onglet, (etat: EtatTerminal) => string][] = [
-  ['VENTE', () => 'Vendre'],
-  ['ARTICLES', (e) => `Articles${e.nombreProduits > 0 ? ` (${e.nombreProduits})` : ''}`],
-  ['CLIENTS', (e) => `Clients${e.nombreClients > 0 ? ` (${e.nombreClients})` : ''}`],
-  ['JOURNAL', () => 'Journal'],
+const ONGLETS: [Onglet, (etat: EtatTerminal) => string, ComposantIcone][] = [
+  ['VENTE', () => 'Vendre', IconeVente],
+  [
+    'ARTICLES',
+    (e) => `Articles${e.nombreProduits > 0 ? ` (${e.nombreProduits})` : ''}`,
+    IconeArticles,
+  ],
+  ['CLIENTS', (e) => `Clients${e.nombreClients > 0 ? ` (${e.nombreClients})` : ''}`, IconeClients],
+  ['JOURNAL', () => 'Journal', IconeJournal],
   // N'apparaît que s'il y a effectivement quelque chose à vérifier : un onglet
   // toujours vide finit par ne plus être regardé du tout.
-  ['A_VERIFIER', (e) => `À vérifier (${e.nombreAnomalies})`],
+  ['A_VERIFIER', (e) => `À vérifier (${e.nombreAnomalies})`, IconeAVerifier],
 ];
 
 /**
@@ -43,14 +62,14 @@ const ONGLETS: [Onglet, (etat: EtatTerminal) => string][] = [
  * d'œil tout ce que couvrira l'application, pas seulement ce qui existe déjà.
  * Sprints et jalons repris de `docs/PLAN-DEVELOPPEMENT.md`.
  */
-const FONCTIONNALITES_PREVUES: { libelle: string; jalon: string }[] = [
-  { libelle: 'Rapports et KPI', jalon: 'Sprint 6' },
-  { libelle: 'Aide et support', jalon: 'Sprint 6' },
-  { libelle: 'Multi-boutiques', jalon: 'V2' },
-  { libelle: 'Assistant WhatsApp', jalon: 'V2' },
-  { libelle: 'OCR de reçus', jalon: 'V2' },
-  { libelle: 'Assistant fiscal IA', jalon: 'V2' },
-  { libelle: 'Financement sur factures', jalon: 'V3' },
+const FONCTIONNALITES_PREVUES: { libelle: string; jalon: string; Icone: ComposantIcone }[] = [
+  { libelle: 'Rapports et KPI', jalon: 'Sprint 6', Icone: IconeRapports },
+  { libelle: 'Aide et support', jalon: 'Sprint 6', Icone: IconeAide },
+  { libelle: 'Multi-boutiques', jalon: 'V2', Icone: IconeMultiBoutiques },
+  { libelle: 'Assistant WhatsApp', jalon: 'V2', Icone: IconeAssistantWhatsApp },
+  { libelle: 'OCR de reçus', jalon: 'V2', Icone: IconeOCR },
+  { libelle: 'Assistant fiscal IA', jalon: 'V2', Icone: IconeAssistantIA },
+  { libelle: 'Financement sur factures', jalon: 'V3', Icone: IconeFinancement },
 ];
 
 export function TableauDeBordTerminal() {
@@ -246,7 +265,7 @@ export function TableauDeBordTerminal() {
           <div className="fne-barre-laterale__groupe">
             <p className="fne-barre-laterale__titre">Fonctionnalités</p>
             {ONGLETS.filter(([cle]) => cle !== 'A_VERIFIER' || etat.nombreAnomalies > 0).map(
-              ([cle, libelle]) => (
+              ([cle, libelle, Icone]) => (
                 <button
                   key={cle}
                   className={`fne-nav-lien ${onglet === cle ? 'fne-nav-lien--actif' : ''}`}
@@ -257,7 +276,10 @@ export function TableauDeBordTerminal() {
                   }}
                   aria-current={onglet === cle ? 'page' : undefined}
                 >
-                  {libelle(etat)}
+                  <span className="fne-nav-lien__gauche">
+                    <Icone className="fne-nav-lien__icone" />
+                    {libelle(etat)}
+                  </span>
                 </button>
               ),
             )}
@@ -265,15 +287,18 @@ export function TableauDeBordTerminal() {
 
           <div className="fne-barre-laterale__groupe">
             <p className="fne-barre-laterale__titre">À venir</p>
-            {FONCTIONNALITES_PREVUES.map((f) => (
+            {FONCTIONNALITES_PREVUES.map(({ libelle, jalon, Icone }) => (
               <span
-                key={f.libelle}
+                key={libelle}
                 className="fne-nav-lien fne-nav-lien--desactive"
                 aria-disabled="true"
-                title={`Prévu au plan de développement — ${f.jalon}`}
+                title={`Prévu au plan de développement — ${jalon}`}
               >
-                {f.libelle}
-                <span className="fne-badge-venir">{f.jalon}</span>
+                <span className="fne-nav-lien__gauche">
+                  <Icone className="fne-nav-lien__icone" />
+                  {libelle}
+                </span>
+                <span className="fne-badge-venir">{jalon}</span>
               </span>
             ))}
           </div>

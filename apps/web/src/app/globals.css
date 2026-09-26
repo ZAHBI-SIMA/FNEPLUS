@@ -259,6 +259,22 @@
   color: var(--fne-primaire-600);
 }
 
+.fne-nav-lien__gauche {
+  display: flex;
+  align-items: center;
+  gap: var(--fne-esp-3);
+  min-width: 0;
+}
+
+.fne-nav-lien__icone {
+  flex-shrink: 0;
+  color: var(--fne-texte-faible);
+}
+
+.fne-nav-lien--actif .fne-nav-lien__icone {
+  color: var(--fne-primaire-600);
+}
+
 /* Fonctionnalité prévue au plan de développement, pas encore construite. */
 .fne-nav-lien--desactive {
   color: var(--fne-texte-faible);
