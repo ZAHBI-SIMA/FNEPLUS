@@ -23,6 +23,7 @@ Thumbs.db
 
 # Données locales de développement
 infra/data/
+infra/sauvegardes/*.dump
 *.sqlite
 *.sqlite-journal
 

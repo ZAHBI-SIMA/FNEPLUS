@@ -67,6 +67,23 @@ const schema = z.object({
    * l'extérieur : `localhost` ne convient qu'en développement.
    */
   API_URL_PUBLIQUE: z.string().default('http://localhost:4001'),
+
+  /**
+   * Délai réglementaire de transmission d'une facture à la DGI, en heures.
+   * Le cahier des charges exige de le mesurer (chapitre 10) sans jamais en
+   * préciser la valeur : point à confirmer avant le pilote terrain, comme les
+   * autres inconnues listées au plan de développement (§1). 24 h est
+   * l'hypothèse de travail, alignée sur les régimes de facturation
+   * électronique comparables.
+   */
+  KPI_DELAI_REGLEMENTAIRE_HEURES: z.coerce.number().int().positive().default(24),
+  /**
+   * Jeton d'accès aux indicateurs plateforme (adoption, rétention — agrégés
+   * sur toutes les entreprises). Volontairement séparé du système de rôles
+   * métier : ce n'est pas une donnée d'un compte, c'est un accès
+   * d'exploitation, sans rôle « opérateur » dans l'application.
+   */
+  KPI_JETON_OPERATEUR: z.string().default('jeton-operateur-de-developpement'),
 });
 
 export type Configuration = z.infer<typeof schema>;
@@ -110,6 +127,11 @@ export function chargerConfiguration(source: NodeJS.ProcessEnv = process.env): C
     if (config.API_URL_PUBLIQUE.includes('localhost')) {
       throw new Error(
         'API_URL_PUBLIQUE pointe sur localhost : le prestataire de paiement ne pourrait pas nous notifier.',
+      );
+    }
+    if (config.KPI_JETON_OPERATEUR.startsWith('jeton-operateur-de-developpement')) {
+      throw new Error(
+        'KPI_JETON_OPERATEUR doit être défini en production : les indicateurs plateforme ne doivent pas rester accessibles avec le jeton de développement.',
       );
     }
   }

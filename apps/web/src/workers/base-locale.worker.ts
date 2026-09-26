@@ -54,6 +54,7 @@ import type {
   ChargePaiementMobile,
   ChargeInscription,
   EtatTerminal,
+  KpisEntreprise,
   ReponseTerminal,
   RequeteTerminal,
   ResultatConnexion,
@@ -445,6 +446,12 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
       const session = lireSession(base);
       sessionRequise(session);
       return appelerApi<SituationARF>('/api/v1/arf/situation', { jeton: session.jeton });
+    }
+
+    case 'KPIS_ENTREPRISE': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      return appelerApi<KpisEntreprise>('/api/v1/kpis/entreprise', { jeton: session.jeton });
     }
 
     default:

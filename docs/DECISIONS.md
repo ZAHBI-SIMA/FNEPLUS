@@ -517,3 +517,150 @@ etc.) prime sur la date, quelle qu'elle soit.
 **Vérifié en démonstration.** Une attestation à 15 jours de l'échéance affiche
 bien « Bientôt expirée — 15 jours restants » sur la tuile du tableau de bord,
 sans action de l'utilisateur.
+
+---
+
+## D-021 — Les indicateurs vivent à deux échelles, pas une seule
+
+**Date :** Sprint 6
+
+**Constat.** Le chapitre 10 du cahier des charges mélange deux natures de
+chiffres : « adoption » et « rétention » n'ont de sens qu'agrégés sur
+l'ensemble des clients — c'est une donnée sur l'activité de FNE+ elle-même —
+tandis que « usage » et « conformité » sont utiles boutique par boutique, au
+commerçant lui-même.
+
+**Décision.** `GET /api/v1/kpis/entreprise` (usage, conformité) passe par le
+contexte tenant normal, comme n'importe quelle autre donnée de compte.
+`GET /api/v1/kpis/plateforme` (adoption, rétention, agrégats globaux) est
+protégé par un jeton d'exploitation dédié (`KPI_JETON_OPERATEUR`) plutôt que
+par le système de rôles métier (propriétaire/caissier/comptable) : ce n'est
+pas un rôle qu'un utilisateur de l'application pourrait avoir, c'est un accès
+d'exploitation, sur le modèle d'un point de métriques.
+
+**Comment l'agrégat lit à travers toutes les entreprises.** Même problème que
+la file de transmission DGI ([[D-013]]) : sans contexte tenant, la RLS ne
+renvoie rien. La fonction `fneplus_kpis_plateforme()` réutilise le rôle
+`fneplus_connecteur` (BYPASSRLS, sans connexion possible) déjà en place,
+plutôt que d'affaiblir la RLS ou d'inventer un second mécanisme.
+
+---
+
+## D-022 — Deux hypothèses de travail non résolues par le cahier des charges
+
+**Date :** Sprint 6
+
+**Constat.** Deux chiffres nécessaires au calcul des indicateurs de
+conformité et d'usage ne sont précisés nulle part dans le cahier des
+charges :
+
+1. Le **délai réglementaire** de transmission d'une facture à la DGI. Le CDC
+   exige de mesurer « la part des factures transmises dans le délai
+   réglementaire » (chapitre 10) sans jamais dire combien d'heures.
+2. Le seuil à partir duquel une facture est considérée « émise hors ligne »
+   plutôt que synchronisée en direct.
+
+**Décision.** Deux hypothèses de travail, documentées plutôt que devinées en
+silence — dans le même esprit que les points bloquants du plan de
+développement (§1) :
+
+- `KPI_DELAI_REGLEMENTAIRE_HEURES` (défaut 24 h), configurable, aligné sur les
+  régimes de facturation électronique comparables faute de mieux.
+- Une facture est comptée « hors ligne » quand plus de 10 secondes séparent
+  son émission (`emise_le`, horloge de l'appareil) de sa réception serveur
+  (`recue_le`) — en deçà, c'est la latence réseau normale d'un envoi en
+  direct, au-delà, c'est qu'elle a attendu dans l'outbox.
+
+**À confirmer avant le pilote terrain.** Le premier point, en particulier,
+conditionne directement le critère d'acceptation du Sprint 6 (« 95 % des
+factures transmises dans le délai réglementaire ») : sans lui, ce critère n'a
+pas de définition vérifiable.
+
+---
+
+## D-023 — La satisfaction n'est pas mesurée, et le dit
+
+**Date :** Sprint 6
+
+**Constat.** Le chapitre 10 demande un Net Promoter Score et un délai moyen
+de résolution des tickets support. Rien dans l'application ne collecte
+d'enquête de satisfaction ni de ticket : la base de connaissance du Sprint 6
+([[D-024]] pour le reste du sprint) répond à des questions, elle n'ouvre pas
+de dossier de support.
+
+**Décision.** `GET /api/v1/kpis/plateforme` renvoie `satisfaction: null` avec
+une note explicite plutôt que d'inventer un chiffre ou de le passer sous
+silence. Un tableau de bord qui affiche un zéro silencieux se lit comme une
+performance ; un champ absent, accompagné d'une explication, se lit comme un
+outil qui manque encore.
+
+**Ce qu'il faudrait pour lever ce point.** Un outil de support/enquête
+externe (ticketing, sondage post-transaction) à brancher — hors du périmètre
+d'un simple ajout de champ.
+
+---
+
+## D-024 — Une sauvegarde qui n'a jamais été restaurée n'est qu'une hypothèse
+
+**Date :** Sprint 6
+
+**Décision.** `infra/sauvegarde.sh` produit un dump PostgreSQL (`pg_dump
+-Fc`) ; `infra/tester-restauration.sh` le restaure dans une base temporaire
+séparée et compare les effectifs de six tables entre la base réelle et la
+base restaurée, table par table, avant de supprimer la base temporaire.
+
+**Vérifié réellement**, pas seulement écrit : sauvegarde puis restauration
+exécutées contre la base de développement, les six tables comparées
+correspondent exactement. C'est la différence entre un plan de sauvegarde et
+un script qui n'a jamais tourné.
+
+---
+
+## D-025 — Le test de charge porte sur la lecture, pas sur l'émission
+
+**Date :** Sprint 6
+
+**Constat.** L'émission d'une facture ne touche jamais le serveur au moment
+de la vente ([[D-002]] : elle se calcule et se chaîne entièrement sur
+l'appareil) — il n'y a donc aucune charge serveur à mesurer sur ce chemin.
+Ce qui pèse réellement sur le serveur, ce sont les écrans qui l'interrogent :
+référentiel fiscal au démarrage, situation ARF, et désormais les indicateurs.
+
+**Décision.** `infra/test-charge.mjs` charge ces points d'accès de lecture,
+publics et authentifiés, avec un nombre de requêtes et une concurrence
+paramétrables.
+
+**Résultat mesuré** (300 requêtes, concurrence 20, poste de développement) :
+100 % de réussite sur les trois points d'accès, p95 sous 50 ms y compris sur
+l'endpoint authentifié `GET /api/v1/kpis/entreprise` (deux requêtes SQL par
+appel). Un deuxième passage à 1000 requêtes et concurrence 50 confirme
+100 % de réussite sur les points publics.
+
+**Ce qui reste à charger.** Le chemin d'écriture (`POST /api/v1/sync`, où
+transitent les commandes `CREER_FACTURE`) exigerait de reconstituer des
+commandes valides — numérotation allouée, chaîne de hash — ce qui dépasse un
+script de charge autonome. Un harnais de terminaux simulés reste à construire
+si ce chemin doit être chargé spécifiquement.
+
+---
+
+## D-026 — Le pilote terrain est une activité opérationnelle, pas une ligne de code
+
+**Date :** Sprint 6
+
+**Constat.** Le Sprint 6 prévoit un pilote de 10 à 20 entreprises à Abidjan,
+dont au moins 3 en zone à connectivité faible. Recruter de vraies entreprises,
+les former et suivre leur usage sur le terrain ne se construit pas dans un
+dépôt de code.
+
+**Ce qui a été construit pour le rendre possible :** le suivi qu'un pilote
+réel exigerait pour être évalué — les indicateurs d'usage et de conformité
+par entreprise ([[D-021]]), la vue plateforme pour l'exploitant, l'écran
+d'aide et le canal de support, la sauvegarde vérifiée. Le critère
+d'acceptation du sprint (disponibilité 99,5 %, 95 % des factures dans le
+délai réglementaire) est désormais mesurable — il ne l'était pas avant ce
+sprint.
+
+**Ce qui reste, explicitement hors de ce qu'un agent de développement peut
+livrer :** le recrutement des entreprises pilotes, leur formation, et le
+suivi humain pendant les deux semaines de pilote.

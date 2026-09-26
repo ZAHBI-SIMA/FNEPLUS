@@ -21,6 +21,8 @@ import { EcranArticles } from './EcranArticles';
 import { EcranVente } from './EcranVente';
 import { RecuFacture } from './RecuFacture';
 import { EcranAVerifier } from './EcranAVerifier';
+import { EcranRapports } from './EcranRapports';
+import { EcranAide } from './EcranAide';
 import { TuileARF } from './TuileARF';
 import {
   IconeAide,
@@ -37,7 +39,7 @@ import {
   IconeVente,
 } from './IconesNavigation';
 
-type Onglet = 'VENTE' | 'ARTICLES' | 'CLIENTS' | 'JOURNAL' | 'A_VERIFIER';
+type Onglet = 'VENTE' | 'ARTICLES' | 'CLIENTS' | 'JOURNAL' | 'A_VERIFIER' | 'RAPPORTS' | 'AIDE';
 type ComposantIcone = typeof IconeVente;
 
 /** La vente est en tête : c'est l'écran ouvert cent fois par jour. */
@@ -53,6 +55,8 @@ const ONGLETS: [Onglet, (etat: EtatTerminal) => string, ComposantIcone][] = [
   // N'apparaît que s'il y a effectivement quelque chose à vérifier : un onglet
   // toujours vide finit par ne plus être regardé du tout.
   ['A_VERIFIER', (e) => `À vérifier (${e.nombreAnomalies})`, IconeAVerifier],
+  ['RAPPORTS', () => 'Rapports et KPI', IconeRapports],
+  ['AIDE', () => 'Aide et support', IconeAide],
 ];
 
 /**
@@ -63,8 +67,6 @@ const ONGLETS: [Onglet, (etat: EtatTerminal) => string, ComposantIcone][] = [
  * Sprints et jalons repris de `docs/PLAN-DEVELOPPEMENT.md`.
  */
 const FONCTIONNALITES_PREVUES: { libelle: string; jalon: string; Icone: ComposantIcone }[] = [
-  { libelle: 'Rapports et KPI', jalon: 'Sprint 6', Icone: IconeRapports },
-  { libelle: 'Aide et support', jalon: 'Sprint 6', Icone: IconeAide },
   { libelle: 'Multi-boutiques', jalon: 'V2', Icone: IconeMultiBoutiques },
   { libelle: 'Assistant WhatsApp', jalon: 'V2', Icone: IconeAssistantWhatsApp },
   { libelle: 'OCR de reçus', jalon: 'V2', Icone: IconeOCR },
@@ -332,6 +334,10 @@ export function TableauDeBordTerminal() {
             <EcranClients surChangement={() => void rafraichir()} />
           ) : onglet === 'A_VERIFIER' ? (
             <EcranAVerifier surChangement={setEtat} />
+          ) : onglet === 'RAPPORTS' ? (
+            <EcranRapports />
+          ) : onglet === 'AIDE' ? (
+            <EcranAide />
           ) : (
             <>
               <header>

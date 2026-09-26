@@ -13,15 +13,15 @@ l'architecture découle de ce choix.
 
 ## État d'avancement
 
-| Sprint | Contenu                                                         | Statut     |
-| ------ | --------------------------------------------------------------- | ---------- |
-| 0      | Socle : monorepo, design system, PWA hors ligne, simulateur DGI | ✅ terminé |
-| 1      | Identité, auth OTP, référentiels clients/produits, multi-tenant | ✅ terminé |
-| 2      | Écran de vente, catalogue articles, QR et reçu imprimable       | ✅ terminé |
-| 3      | Hors-ligne durci : tests adverses, écran « à vérifier »         | ✅ terminé |
-| 4      | Connecteur DGI, file de transmission, archivage et export       | ✅ terminé |
-| 5      | Mobile money, suivi ARF, tableau de bord                        | ✅ terminé |
-| 6      | Durcissement, pilote terrain à Abidjan                          | à venir    |
+| Sprint | Contenu                                                         | Statut                            |
+| ------ | --------------------------------------------------------------- | --------------------------------- |
+| 0      | Socle : monorepo, design system, PWA hors ligne, simulateur DGI | ✅ terminé                        |
+| 1      | Identité, auth OTP, référentiels clients/produits, multi-tenant | ✅ terminé                        |
+| 2      | Écran de vente, catalogue articles, QR et reçu imprimable       | ✅ terminé                        |
+| 3      | Hors-ligne durci : tests adverses, écran « à vérifier »         | ✅ terminé                        |
+| 4      | Connecteur DGI, file de transmission, archivage et export       | ✅ terminé                        |
+| 5      | Mobile money, suivi ARF, tableau de bord                        | ✅ terminé                        |
+| 6      | Durcissement, pilote terrain à Abidjan                          | 🟡 outillage prêt, pilote à mener |
 
 ---
 
@@ -51,7 +51,13 @@ pnpm test                              # tests de tous les packages
 pnpm build                             # construction complète
 pnpm --filter @fneplus/web analyse:poids   # budget de poids du premier chargement
 pnpm --filter @fneplus/dgi-sim dev         # simulateur DGI sur le port 4010
+pnpm --filter @fneplus/momo-sim dev        # simulateur mobile money sur le port 4020
 pnpm infra:up                          # PostgreSQL + Redis
+
+./infra/sauvegarde.sh                  # sauvegarde de la base (pg_dump)
+./infra/tester-restauration.sh         # restaure la dernière sauvegarde dans une base
+                                        # temporaire et vérifie les effectifs table par table
+node infra/test-charge.mjs             # test de charge du chemin de lecture de l'API
 ```
 
 ### Vérifier le mode hors ligne
@@ -169,6 +175,22 @@ fonctionner l'application plutôt qu'en lisant ses tests.
 Le commerçant est prévenu 30 jours avant l'expiration de son attestation, pas
 seulement une fois qu'il est déjà bloqué.
 
+**Les indicateurs vivent à deux échelles.** Usage et conformité sont une
+donnée de compte, lue avec le contexte tenant normal. Adoption et rétention
+n'ont de sens qu'agrégées sur toute la plateforme — ce n'est pas une donnée
+qu'un rôle métier (propriétaire, caissier, comptable) devrait porter, donc
+l'accès passe par un jeton d'exploitation dédié, pas par le système de rôles.
+
+**Un chiffre absent vaut mieux qu'un chiffre inventé.** La satisfaction
+(NPS, délai de résolution support) n'a aucune source de données dans
+l'application : l'indicateur renvoie `null` avec une explication, plutôt
+qu'un zéro qui se lirait comme une performance.
+
+**Une sauvegarde qui n'a jamais été restaurée n'est qu'une hypothèse.**
+`infra/tester-restauration.sh` restaure réellement la dernière sauvegarde
+dans une base temporaire et compare les effectifs table par table, avant de
+la supprimer.
+
 ---
 
 ## Points à confirmer avant la suite
@@ -182,3 +204,7 @@ La première peut remettre en cause la promesse produit.
 3. Périmètre exact de la numérotation séquentielle et tolérance aux plages pré-allouées.
 4. Mobile money : agrégateur ou intégration directe par opérateur.
 5. Exigence de résidence des données UEMOA et hébergeur retenu.
+6. **Délai réglementaire de transmission d'une facture à la DGI, en heures** —
+   requis pour vérifier le critère d'acceptation du Sprint 6 (« 95 % des
+   factures transmises dans le délai réglementaire »), jamais chiffré dans le
+   cahier des charges. Hypothèse de travail : 24 h (`KPI_DELAI_REGLEMENTAIRE_HEURES`).

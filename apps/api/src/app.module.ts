@@ -12,11 +12,20 @@ import { ReferentielsModule } from './referentiels/referentiels.controller.js';
 import { DgiModule } from './dgi/dgi.module.js';
 import { PaiementsModule } from './paiements/paiements.module.js';
 import { ArfModule } from './arf/arf.module.js';
+import { KpisModule } from './kpis/kpis.module.js';
 import { GardeAuth } from './commun/auth.garde.js';
 import { SanteController } from './sante.controller.js';
 
 @Module({
-  imports: [DbModule, AuthModule, ReferentielsModule, DgiModule, PaiementsModule, ArfModule],
+  imports: [
+    DbModule,
+    AuthModule,
+    ReferentielsModule,
+    DgiModule,
+    PaiementsModule,
+    ArfModule,
+    KpisModule,
+  ],
   controllers: [
     SanteController,
     // AuthController est déclaré par AuthModule : le redéclarer ici ferait

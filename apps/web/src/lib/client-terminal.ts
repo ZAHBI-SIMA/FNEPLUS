@@ -19,6 +19,7 @@ import type {
   ChargeProduit,
   EtatReglementLocal,
   EtatTerminal,
+  KpisEntreprise,
   ReponseTerminal,
   RequeteTerminal,
   ResultatClients,
@@ -185,6 +186,10 @@ class ClientTerminal {
 
   situationARF(): Promise<SituationARF> {
     return this.appeler<SituationARF>('SITUATION_ARF');
+  }
+
+  kpisEntreprise(): Promise<KpisEntreprise> {
+    return this.appeler<KpisEntreprise>('KPIS_ENTREPRISE');
   }
 }
 

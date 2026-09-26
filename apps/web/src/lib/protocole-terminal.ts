@@ -38,7 +38,8 @@ export type ActionTerminal =
   | 'ENCAISSER_ESPECES'
   | 'DEMANDER_PAIEMENT_MOBILE'
   | 'ETAT_REGLEMENT'
-  | 'SITUATION_ARF';
+  | 'SITUATION_ARF'
+  | 'KPIS_ENTREPRISE';
 
 export interface RequeteTerminal {
   id: number;
@@ -207,4 +208,22 @@ export interface SituationARF {
   expireLe?: string;
   joursAvantExpiration?: number;
   message: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Indicateurs (chapitre 10 du cahier des charges)                     */
+/* ------------------------------------------------------------------ */
+
+export interface KpisEntreprise {
+  periodeJours: number;
+  delaiReglementaireHeures: number;
+  usage: {
+    nombreFactures: number;
+    partHorsLignePourcent: number | null;
+    delaiMoyenSyncSecondes: number | null;
+  };
+  conformite: {
+    nombreCertifiees: number;
+    partDansLeDelaiPourcent: number | null;
+  };
 }

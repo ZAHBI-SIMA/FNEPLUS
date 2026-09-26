@@ -827,3 +827,25 @@
   font-size: var(--fne-taille-sm);
   font-weight: 600;
 }
+
+/* ---------------- Aide ---------------- */
+
+.fne-question {
+  border: 1px solid var(--fne-bordure);
+  border-radius: var(--fne-rayon-md);
+  padding: var(--fne-esp-3);
+}
+
+.fne-question summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--fne-cible-tactile);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fne-question p {
+  margin: var(--fne-esp-2) 0 0;
+  font-size: var(--fne-taille-sm);
+  color: var(--fne-texte-faible);
+}
