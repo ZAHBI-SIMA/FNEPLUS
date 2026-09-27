@@ -29,7 +29,7 @@ Ces points conditionnent l'architecture. Ils sont listés en tête car certains 
 | #   | Point                                                                                                                                                                                                                                                                | Impact si non levé                                | Échéance  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | --------- |
 | 1   | **Le QR code FNE peut-il être calculé hors ligne ?** Si la DGI renvoie un identifiant de certification qui doit figurer dans le QR, la promesse « QR remis au client sans attendre la connexion » exige une négociation (plages pré-certifiées) ou un QR provisoire. | Risque produit majeur                             | Semaine 1 |
-| 2   | Accès au bac à sable (sandbox) de `fne.dgi.gouv.ci` : spécification, authentification, quotas, SLA.                                                                                                                                                                  | Développement à l'aveugle sur simulateur          | Semaine 2 |
+| 2   | Accès au bac à sable de la DGI : **procédure connue** (ci-dessous), reste à exécuter — inscription, tests, validation de spécimens.                                                                                                                                  | Développement à l'aveugle sur simulateur          | Semaine 2 |
 | 3   | Règles de numérotation séquentielle : périmètre de la séquence (entreprise ? point de vente ? terminal ?) et tolérance aux plages pré-allouées.                                                                                                                      | Non-conformité de la numérotation hors-ligne      | Semaine 2 |
 | 4   | Mobile money : agrégateur (CinetPay, PayDunya, Hub2) ou intégration directe Orange / MTN / Wave / Moov.                                                                                                                                                              | Délai d'accès aux API opérateurs (2 à 8 semaines) | Semaine 3 |
 | 5   | Hébergement : exigence exacte de résidence des données UEMOA, et hébergeur retenu à Abidjan.                                                                                                                                                                         | Rejet réglementaire tardif, migration coûteuse    | Semaine 3 |
@@ -38,6 +38,40 @@ Ces points conditionnent l'architecture. Ils sont listés en tête car certains 
 **Hypothèse de travail en attendant :** on développe contre un **simulateur DGI** fidèle à la
 spécification publique, derrière une couche d'anticorruption. Le passage à l'API réelle ne touche
 alors qu'un module isolé.
+
+### Procédure d'accès à l'API FNE (point 2)
+
+Documentée par la DGI (« Procédure d'interfaçage des entreprises par API », mai 2025), en trois
+phases :
+
+1. **Prérequis techniques.** Requêtes HTTP RESTful, JSON, authentification par jeton JWT (Bearer
+   Token) ou certificat, connexion internet stable — déjà ce que fait `DgiClient`
+   (`apps/api/src/dgi/dgi.client.ts`), qui envoie `Authorization: Bearer ${DGI_CLE_API}`. **Aucun
+   changement de code n'est nécessaire côté authentification** : c'est le mécanisme prévu depuis
+   le Sprint 4, il ne manque que le jeton réel.
+2. **Inscription et environnement de test.** Inscription sur la plateforme FNE de test, qui
+   retourne l'URL de l'environnement et la documentation technique. Développement et tests
+   (génération, certification, scénarios d'erreur) contre cet environnement.
+3. **Validation et production.** Envoi de spécimens de factures à `support.fne@dgi.gouv.ci` pour
+   validation de conformité. Une fois validée, la DGI communique l'URL de production et débloque
+   la clé API, récupérable dans l'onglet « Paramétrage » du compte FNE — visible uniquement par le
+   gestionnaire principal du compte.
+
+**Contact support DGI :** `support.fne@dgi.gouv.ci`, ou 25 21 01 86 60 (option 4).
+
+**Deux réserves, à vérifier avant de s'engager :**
+
+- Une adresse IP pour l'environnement de test circule sur des guides tiers, mais n'est pas un nom
+  de domaine officiel stable — **à confirmer directement auprès du support** avant toute
+  intégration, plutôt que de la coder en dur : elle peut changer sans préavis.
+- Un SDK PHP open source existe déjà pour cette API (dépôt `PRODESTIC/fne-sdk-php` sur GitHub).
+  Non réutilisable directement (ce projet est en TypeScript), mais utile comme référence pour
+  valider la couche d'anticorruption (`apps/api/src/dgi/anticorruption.ts`) contre le comportement
+  réel de l'API une fois l'accès obtenu.
+
+**Ce qui reste hors du périmètre d'un agent de développement :** l'inscription elle-même (identité
+d'une entreprise réelle), l'envoi des spécimens et les échanges avec le support DGI, et la
+récupération du jeton — actions qui exigent un compte DGI réel, tenu par une personne physique.
 
 ---
 

@@ -200,7 +200,10 @@ La première peut remettre en cause la promesse produit.
 
 1. **Le QR code FNE peut-il être calculé hors ligne**, ou dépend-il d'un identifiant renvoyé
    par la DGI ?
-2. Accès au bac à sable de `fne.dgi.gouv.ci` : spécification, authentification, quotas.
+2. Accès au bac à sable de la DGI : **procédure connue** (voir
+   `docs/PLAN-DEVELOPPEMENT.md`, §1) — inscription, tests, validation de spécimens par
+   `support.fne@dgi.gouv.ci` — reste à exécuter. L'authentification par jeton JWT Bearer
+   qu'elle exige est déjà celle que `DgiClient` implémente ; il ne manque que le jeton réel.
 3. Périmètre exact de la numérotation séquentielle et tolérance aux plages pré-allouées.
 4. Mobile money : agrégateur ou intégration directe par opérateur.
 5. Exigence de résidence des données UEMOA et hébergeur retenu.

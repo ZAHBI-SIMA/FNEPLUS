@@ -36,6 +36,12 @@ const schema = z.object({
   /**
    * API FNE de la DGI. Pointe par défaut sur le simulateur local tant que
    * l'accès au bac à sable officiel n'est pas acquis.
+   *
+   * Procédure d'accès documentée dans `docs/PLAN-DEVELOPPEMENT.md` (§1, point
+   * 2) : inscription, environnement de test, validation de spécimens par
+   * support.fne@dgi.gouv.ci, puis jeton JWT Bearer remis dans le compte FNE.
+   * `DgiClient` envoie déjà ce jeton via `DGI_CLE_API` — seules ces deux
+   * valeurs changent au passage à l'API réelle, aucun code.
    */
   DGI_URL: z.string().default('http://localhost:4010'),
   DGI_CLE_API: z.string().optional(),

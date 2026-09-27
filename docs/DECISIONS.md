@@ -664,3 +664,34 @@ sprint.
 **Ce qui reste, explicitement hors de ce qu'un agent de développement peut
 livrer :** le recrutement des entreprises pilotes, leur formation, et le
 suivi humain pendant les deux semaines de pilote.
+
+---
+
+## D-027 — La procédure d'accès à l'API FNE est connue ; le connecteur l'anticipait déjà
+
+**Date :** Sprint 6 (hors sprint, information reçue en cours de route)
+
+**Constat.** Le point bloquant n°1 du plan de développement (§1) était un
+total inconnu : comment accéder au bac à sable DGI. La procédure officielle
+(« Procédure d'interfaçage des entreprises par API », mai 2025) est
+maintenant documentée : inscription → environnement de test → validation de
+spécimens par `support.fne@dgi.gouv.ci` → jeton JWT (Bearer Token) récupéré
+dans le compte FNE, visible uniquement par le gestionnaire principal.
+
+**Ce qui ne change pas.** `DgiClient` (Sprint 4) envoie déjà
+`Authorization: Bearer ${DGI_CLE_API}` — exactement le mécanisme
+d'authentification décrit. Construire contre un simulateur fidèle à la
+spécification publique plutôt que d'attendre l'accès réel ([[D-015]]) a payé :
+le connecteur n'a rien à changer, `DGI_CLE_API` et `DGI_URL` sont déjà les
+deux seules valeurs à remplacer.
+
+**Deux réserves portées, pas résolues.** L'adresse IP de test qui circule sur
+des guides tiers n'est pas confirmée officielle et n'est délibérément codée
+nulle part dans le projet — elle doit être vérifiée directement auprès du
+support avant toute intégration. Le SDK PHP tiers (`PRODESTIC/fne-sdk-php`)
+n'est pas intégré (projet TypeScript) mais reste une référence utile pour
+valider la couche d'anticorruption une fois l'accès obtenu.
+
+**Ce qui reste hors du périmètre d'un agent de développement.** L'inscription
+elle-même exige l'identité d'une entreprise réelle et un échange humain avec
+le support DGI — même nature de limite que le pilote terrain ([[D-026]]).
