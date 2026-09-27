@@ -310,14 +310,26 @@ export interface TotauxJour {
   tvaCollectee: number;
 }
 
+/**
+ * Totaux du jour.
+ *
+ * Un avoir n'est pas une vente qu'on ignore, c'est une vente qu'on retranche :
+ * exclure les avoirs du calcul (comme avant) laissait le chiffre d'affaires
+ * du jour inchangé après un avoir, alors qu'il doit diminuer d'autant. Une
+ * facture rectificative, elle, reste additive — elle corrige l'avenir, elle
+ * ne réécrit pas ce qui a déjà été compté un jour antérieur.
+ */
 export function totauxDuJour(base: DepotLocal, entrepriseId: string): TotauxJour {
   const debut = new Date();
   debut.setHours(0, 0, 0, 0);
 
   const lignes = base.interroger<{ n: number; ttc: number | null; tva: number | null }>(
-    `SELECT COUNT(*) AS n, SUM(total_ttc) AS ttc, SUM(total_tva) AS tva
+    `SELECT
+       SUM(CASE WHEN type != 'AVOIR' THEN 1 ELSE 0 END) AS n,
+       SUM(CASE WHEN type = 'AVOIR' THEN -total_ttc ELSE total_ttc END) AS ttc,
+       SUM(CASE WHEN type = 'AVOIR' THEN -total_tva ELSE total_tva END) AS tva
        FROM factures
-      WHERE entreprise_id = ? AND emise_le >= ? AND type != 'AVOIR'`,
+      WHERE entreprise_id = ? AND emise_le >= ?`,
     [entrepriseId, debut.toISOString()],
   );
 
@@ -326,5 +338,71 @@ export function totauxDuJour(base: DepotLocal, entrepriseId: string): TotauxJour
     nombre: l?.n ?? 0,
     chiffreAffairesTTC: l?.ttc ?? 0,
     tvaCollectee: l?.tva ?? 0,
+  };
+}
+
+export interface FactureDetail {
+  id: string;
+  numero: string;
+  type: TypeDocument;
+  clientId: string | null;
+  clientNom: string;
+  clientNcc: string | null;
+  totalTTC: number;
+  lignes: LigneFacture[];
+}
+
+/**
+ * Retrouve une facture par son numéro, avec ses lignes — pour préremplir un
+ * avoir ou une rectificative sur ce qui a réellement été vendu, plutôt que de
+ * ressaisir à la main et risquer un écart avec l'original.
+ */
+export function obtenirFactureParNumero(
+  base: DepotLocal,
+  entrepriseId: string,
+  numero: string,
+): FactureDetail | null {
+  const [facture] = base.interroger<{
+    id: string;
+    numero: string;
+    type: TypeDocument;
+    client_id: string | null;
+    client_nom: string;
+    client_ncc: string | null;
+    total_ttc: number;
+  }>(
+    `SELECT id, numero, type, client_id, client_nom, client_ncc, total_ttc
+       FROM factures WHERE entreprise_id = ? AND numero = ?`,
+    [entrepriseId, numero.trim()],
+  );
+  if (!facture) return null;
+
+  const lignes = base.interroger<{
+    id: string;
+    designation: string;
+    quantite: number;
+    prix_unitaire_ht: number;
+    code_tva: LigneFacture['codeTva'];
+    remise_pourcent: number;
+    produit_id: string | null;
+  }>(`SELECT * FROM lignes_facture WHERE facture_id = ? ORDER BY rang`, [facture.id]);
+
+  return {
+    id: facture.id,
+    numero: facture.numero,
+    type: facture.type,
+    clientId: facture.client_id,
+    clientNom: facture.client_nom,
+    clientNcc: facture.client_ncc,
+    totalTTC: facture.total_ttc,
+    lignes: lignes.map((l) => ({
+      id: l.id,
+      designation: l.designation,
+      quantite: l.quantite,
+      prixUnitaireHT: l.prix_unitaire_ht,
+      codeTva: l.code_tva,
+      remisePourcent: l.remise_pourcent,
+      ...(l.produit_id ? { produitId: l.produit_id } : {}),
+    })),
   };
 }

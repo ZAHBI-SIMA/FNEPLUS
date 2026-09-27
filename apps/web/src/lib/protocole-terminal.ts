@@ -8,7 +8,7 @@
  * s'éteindrait.
  */
 
-import type { LigneFacture, RegimeFiscal } from '@fneplus/core';
+import type { LigneFacture, RegimeFiscal, TypeDocument } from '@fneplus/core';
 import type { InfosBaseLocale } from './db/base-locale';
 import type { ResumeFacture, TotauxJour } from './depot/factures';
 import type { LigneClient } from './depot/clients';
@@ -41,7 +41,8 @@ export type ActionTerminal =
   | 'SITUATION_ARF'
   | 'KPIS_ENTREPRISE'
   | 'RESUME_BOUTIQUES'
-  | 'CREER_BOUTIQUE';
+  | 'CREER_BOUTIQUE'
+  | 'RECHERCHER_FACTURE';
 
 export interface RequeteTerminal {
   id: number;
@@ -112,6 +113,10 @@ export interface ChargeEmission {
   /** Affichée sur le reçu ; ne fait pas partie du document légal archivé. */
   clientAdresse?: string;
   lignes: Omit<LigneFacture, 'id'>[];
+  /** Absent = facture normale. */
+  type?: TypeDocument;
+  /** Facture créditée ou corrigée — obligatoire pour un avoir ou une rectificative. */
+  factureOrigineId?: string;
 }
 
 /** Ligne du reçu, telle qu'affichée dans le tableau de la facture normalisée. */
@@ -125,12 +130,15 @@ export interface LigneRecu {
 export interface ResultatEmission {
   factureId: string;
   numero: string;
+  type: TypeDocument;
   totalTTC: number;
   totalTVA: number;
   emiseLe: string;
   clientNom: string;
   clientAdresse?: string;
   lignes: LigneRecu[];
+  /** Numéro de la facture créditée ou corrigée — présent pour un avoir ou une rectificative. */
+  numeroOrigine?: string;
   /** Contenu à encoder dans le QR remis au client. */
   contenuQR: string;
   /** Vrai tant que la DGI n'a pas certifié la facture. */
@@ -253,4 +261,23 @@ export interface ResultatCreerBoutique {
   id: string;
   libelle: string;
   code: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Avoirs et factures rectificatives (« 3R »)                          */
+/* ------------------------------------------------------------------ */
+
+export interface ChargeRechercherFacture {
+  numero: string;
+}
+
+export interface FactureOrigine {
+  id: string;
+  numero: string;
+  type: TypeDocument;
+  clientId: string | null;
+  clientNom: string;
+  clientNcc: string | null;
+  totalTTC: number;
+  lignes: LigneFacture[];
 }

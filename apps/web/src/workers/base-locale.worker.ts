@@ -21,7 +21,13 @@ import {
   compterEnAttente,
   recupererCommandesInterrompues,
 } from '@/lib/outbox';
-import { dernieresFactures, emettreFacture, plageActive, totauxDuJour } from '@/lib/depot/factures';
+import {
+  dernieresFactures,
+  emettreFacture,
+  obtenirFactureParNumero,
+  plageActive,
+  totauxDuJour,
+} from '@/lib/depot/factures';
 import { compterClients, enregistrerClient, listerClients } from '@/lib/depot/clients';
 import { compterProduits, enregistrerProduit, listerProduits } from '@/lib/depot/produits';
 import {
@@ -54,7 +60,9 @@ import type {
   ChargeEmission,
   ChargePaiementMobile,
   ChargeInscription,
+  ChargeRechercherFacture,
   EtatTerminal,
+  FactureOrigine,
   KpisEntreprise,
   ReponseTerminal,
   RequeteTerminal,
@@ -248,19 +256,31 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
           clientNom: charge.clientNom,
           ...(charge.clientId ? { clientId: charge.clientId } : {}),
           lignes: charge.lignes,
+          ...(charge.type ? { type: charge.type } : {}),
+          ...(charge.factureOrigineId ? { factureOrigineId: charge.factureOrigineId } : {}),
         },
       );
 
       const qr = construireContenuQR(facture, session.ncc);
 
+      // Résolu depuis la base plutôt que repris du message reçu : la facture
+      // d'origine fait foi, pas ce que l'écran d'avoir pensait avoir trouvé.
+      const numeroOrigine = facture.factureOrigineId
+        ? base.interroger<{ numero: string }>(`SELECT numero FROM factures WHERE id = ?`, [
+            facture.factureOrigineId,
+          ])[0]?.numero
+        : undefined;
+
       const resultat: ResultatEmission = {
         factureId: facture.id,
         numero: facture.numero,
+        type: facture.type,
         totalTTC: facture.totaux.totalTTC,
         totalTVA: facture.totaux.totalTVA,
         emiseLe: facture.emiseLe,
         clientNom: facture.clientNom,
         ...(charge.clientAdresse ? { clientAdresse: charge.clientAdresse } : {}),
+        ...(numeroOrigine ? { numeroOrigine } : {}),
         contenuQR: qr.contenu,
         qrProvisoire: qr.provisoire,
         dureeMs: performance.now() - depart,
@@ -474,6 +494,27 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
         jeton: session.jeton,
         corps: charge,
       });
+    }
+
+    case 'RECHERCHER_FACTURE': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      const { numero } = requete.charge as ChargeRechercherFacture;
+      const facture = obtenirFactureParNumero(base, session.entrepriseId, numero);
+      if (!facture) {
+        throw new Error(`Aucune facture ne porte le numéro « ${numero} ».`);
+      }
+      const resultat: FactureOrigine = {
+        id: facture.id,
+        numero: facture.numero,
+        type: facture.type,
+        clientId: facture.clientId,
+        clientNom: facture.clientNom,
+        clientNcc: facture.clientNcc,
+        totalTTC: facture.totalTTC,
+        lignes: facture.lignes,
+      };
+      return resultat;
     }
 
     default:

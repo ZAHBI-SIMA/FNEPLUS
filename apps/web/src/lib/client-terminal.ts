@@ -18,8 +18,10 @@ import type {
   ChargeInscription,
   ChargePaiementMobile,
   ChargeProduit,
+  ChargeRechercherFacture,
   EtatReglementLocal,
   EtatTerminal,
+  FactureOrigine,
   KpisEntreprise,
   ReponseTerminal,
   RequeteTerminal,
@@ -201,6 +203,10 @@ class ClientTerminal {
 
   creerBoutique(charge: ChargeCreerBoutique): Promise<ResultatCreerBoutique> {
     return this.appeler<ResultatCreerBoutique>('CREER_BOUTIQUE', charge);
+  }
+
+  rechercherFacture(charge: ChargeRechercherFacture): Promise<FactureOrigine> {
+    return this.appeler<FactureOrigine>('RECHERCHER_FACTURE', charge);
   }
 }
 

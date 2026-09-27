@@ -604,4 +604,44 @@ describe('multi-boutiques', () => {
       b.pointDeVenteId,
     ]);
   });
+
+  it('retranche un avoir du chiffre d’affaires du jour dans le résumé consolidé', async () => {
+    const proprio = await inscrireEtConnecter('36');
+
+    await admin`
+      INSERT INTO factures (
+        id, entreprise_id, point_de_vente_id, terminal_id, type, statut, numero,
+        emise_le, client_nom, total_ht, total_tva, total_ttc, totaux, lignes,
+        version_referentiel, hash_precedent, hash
+      ) VALUES (
+        ${uuidv7()}, ${proprio.entrepriseId}, ${proprio.pointDeVenteId}, ${uuidv7()}, 'FACTURE',
+        'EMISE_LOCALEMENT', 'F-36-1', now(), 'Client test', 10000, 1800, 11800,
+        '{}'::jsonb, '[]'::jsonb, '2026.01', ${'0'.repeat(64)}, ${'hash-36-1'}
+      )
+    `;
+    await admin`
+      INSERT INTO factures (
+        id, entreprise_id, point_de_vente_id, terminal_id, type, statut, numero,
+        emise_le, client_nom, total_ht, total_tva, total_ttc, totaux, lignes,
+        version_referentiel, hash_precedent, hash
+      ) VALUES (
+        ${uuidv7()}, ${proprio.entrepriseId}, ${proprio.pointDeVenteId}, ${uuidv7()}, 'AVOIR',
+        'EMISE_LOCALEMENT', 'F-36-2', now(), 'Client test', 10000, 1800, 11800,
+        '{}'::jsonb, '[]'::jsonb, '2026.01', ${'0'.repeat(64)}, ${'hash-36-2'}
+      )
+    `;
+
+    const resume = await appeler('GET', '/api/v1/entreprises/points-de-vente/resume', {
+      jeton: proprio.jeton,
+    });
+
+    const ligne = (
+      resume.corps as unknown as { facturesDuJour: number; caDuJourTTC: number }[]
+    )[0]!;
+    // Une seule vente compte, l'avoir l'annule intégralement plutôt que d'être
+    // ignoré (ce qui laisserait le chiffre d'affaires inchangé) ou ajouté (ce
+    // qui le doublerait).
+    expect(ligne.facturesDuJour).toBe(1);
+    expect(ligne.caDuJourTTC).toBe(0);
+  });
 });

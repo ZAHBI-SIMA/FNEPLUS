@@ -239,11 +239,17 @@ export class EntreprisesService {
           ca_du_jour: number;
         }[]
       >`
+        -- Un avoir retranche du chiffre d'affaires du jour, il ne s'ajoute pas
+        -- et ne s'ignore pas non plus : voir depot/factures.ts (web) pour le
+        -- même raisonnement côté local.
         SELECT
           pdv.id, pdv.libelle, pdv.code,
-          COUNT(f.id) FILTER (WHERE f.emise_le >= date_trunc('day', now()))::int AS factures_du_jour,
+          COUNT(f.id) FILTER (
+            WHERE f.emise_le >= date_trunc('day', now()) AND f.type != 'AVOIR'
+          )::int AS factures_du_jour,
           COALESCE(
-            SUM(f.total_ttc) FILTER (WHERE f.emise_le >= date_trunc('day', now())), 0
+            SUM(CASE WHEN f.type = 'AVOIR' THEN -f.total_ttc ELSE f.total_ttc END)
+              FILTER (WHERE f.emise_le >= date_trunc('day', now())), 0
           )::bigint AS ca_du_jour
           FROM points_de_vente pdv
           LEFT JOIN factures f ON f.point_de_vente_id = pdv.id

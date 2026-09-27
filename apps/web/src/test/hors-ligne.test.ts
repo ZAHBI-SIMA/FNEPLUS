@@ -29,7 +29,12 @@ import {
   PDV_TEST,
   TERMINAL_TEST,
 } from './depot-node';
-import { emettreFacture, plageActive } from '../lib/depot/factures';
+import {
+  emettreFacture,
+  obtenirFactureParNumero,
+  plageActive,
+  totauxDuJour,
+} from '../lib/depot/factures';
 import {
   appliquerResultats,
   compterEchecsDefinitifs,
@@ -130,6 +135,81 @@ describe('émission hors ligne', () => {
     expect(plageApres.curseur).toBe(plageAvant.curseur);
     expect(base.interroger('SELECT id FROM factures')).toHaveLength(0);
     expect(compterEnAttente(base)).toBe(0);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+
+describe('avoirs et factures rectificatives', () => {
+  it('retrouve une facture par son numéro, avec ses lignes', async () => {
+    const [facture] = await emettre(1);
+
+    const trouvee = obtenirFactureParNumero(base, ENTREPRISE_TEST, facture!.numero);
+
+    expect(trouvee?.id).toBe(facture!.id);
+    expect(trouvee?.lignes).toHaveLength(2);
+    expect(trouvee?.lignes[0]).toMatchObject({
+      designation: 'Sac de riz 25 kg',
+      quantite: 1,
+      prixUnitaireHT: 18_500,
+    });
+  });
+
+  it('ne trouve rien pour un numéro inexistant', async () => {
+    await emettre(1);
+    expect(obtenirFactureParNumero(base, ENTREPRISE_TEST, 'PDV01-2026-999999')).toBeNull();
+  });
+
+  it('un avoir retranche du chiffre d’affaires du jour, il ne s’ajoute pas et ne s’ignore pas', async () => {
+    const [facture] = await emettre(1); // 25 700 HT + 3 978 TVA = 29 678 TTC
+
+    const avantAvoir = totauxDuJour(base, ENTREPRISE_TEST);
+    expect(avantAvoir.chiffreAffairesTTC).toBe(29_678);
+
+    await emettreFacture(base, contexte(), {
+      clientNom: facture!.clientNom,
+      lignes: LIGNES,
+      type: 'AVOIR',
+      factureOrigineId: facture!.id,
+    });
+
+    const apresAvoir = totauxDuJour(base, ENTREPRISE_TEST);
+    // Deux documents émis (facture + avoir), mais un seul compte comme vente :
+    // l'avoir annule intégralement la facture créditée.
+    expect(apresAvoir.nombre).toBe(1);
+    expect(apresAvoir.chiffreAffairesTTC).toBe(0);
+    expect(apresAvoir.tvaCollectee).toBe(0);
+  });
+
+  it('une facture rectificative reste additive dans le chiffre d’affaires du jour', async () => {
+    const [facture] = await emettre(1);
+
+    await emettreFacture(base, contexte(), {
+      clientNom: facture!.clientNom,
+      lignes: LIGNES,
+      type: 'RECTIFICATIVE',
+      factureOrigineId: facture!.id,
+    });
+
+    const totaux = totauxDuJour(base, ENTREPRISE_TEST);
+    expect(totaux.nombre).toBe(2);
+    expect(totaux.chiffreAffairesTTC).toBe(29_678 * 2);
+  });
+
+  it('chaîne un avoir comme n’importe quel autre document, sans rompre l’intégrité', async () => {
+    const [facture] = await emettre(1);
+    const { facture: avoir } = await emettreFacture(base, contexte(), {
+      clientNom: facture!.clientNom,
+      lignes: LIGNES,
+      type: 'AVOIR',
+      factureOrigineId: facture!.id,
+    });
+
+    expect(avoir.hashPrecedent).toBe(facture!.hash);
+    expect(avoir.factureOrigineId).toBe(facture!.id);
+
+    const verification = await verifierChaine([facture!, avoir]);
+    expect(verification.valide).toBe(true);
   });
 });
 

@@ -44,11 +44,20 @@ export function RecuFacture({
     timeStyle: 'short',
   }).format(date);
 
+  const libelleType =
+    resultat.type === 'AVOIR'
+      ? 'Avoir n°'
+      : resultat.type === 'RECTIFICATIVE'
+        ? 'Facture rectificative n°'
+        : resultat.type === 'ACOMPTE'
+          ? 'Facture d’acompte n°'
+          : 'Facture n°';
+
   return (
     <div className="fne-recu-ecran">
       <div className="fne-recu-document" id="recu-imprimable">
         <header className="fne-recu__titre">
-          <span>Facture n°</span>
+          <span>{libelleType}</span>
           <strong className="fne-chiffres">{resultat.numero}</strong>
         </header>
 
@@ -88,6 +97,12 @@ export function RecuFacture({
               <dd>{resultat.clientAdresse}</dd>
             </div>
           ) : null}
+          {resultat.numeroOrigine ? (
+            <div>
+              <dt>Relatif à la facture</dt>
+              <dd className="fne-chiffres">{resultat.numeroOrigine}</dd>
+            </div>
+          ) : null}
         </dl>
 
         <table className="fne-recu__tableau">
@@ -118,7 +133,9 @@ export function RecuFacture({
         </table>
 
         <div className="fne-recu__total-ligne">
-          <span>Montant Total TTC</span>
+          <span>
+            {resultat.type === 'AVOIR' ? 'Montant Total TTC à rembourser' : 'Montant Total TTC'}
+          </span>
           <strong className="fne-chiffres">{formaterXOF(resultat.totalTTC)}</strong>
         </div>
 
@@ -143,9 +160,11 @@ export function RecuFacture({
         Émise en <strong>{resultat.dureeMs.toFixed(0)} ms</strong>, sans appel réseau.
       </p>
 
-      <div className="fne-sans-impression">
-        <PanneauEncaissement factureId={resultat.factureId} />
-      </div>
+      {resultat.type !== 'AVOIR' ? (
+        <div className="fne-sans-impression">
+          <PanneauEncaissement factureId={resultat.factureId} />
+        </div>
+      ) : null}
 
       <div className="fne-actions fne-sans-impression">
         <Bouton pleineLargeur onClick={() => window.print()}>

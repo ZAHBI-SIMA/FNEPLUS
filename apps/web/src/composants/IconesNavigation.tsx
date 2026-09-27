@@ -150,3 +150,15 @@ export function IconeFinancement(props: ProprietesIcone) {
     </Icone>
   );
 }
+
+export function IconeAvoir(props: ProprietesIcone) {
+  return (
+    <Icone {...props}>
+      <rect x="5" y="3" width="14" height="18" rx="1.5" />
+      <path d="M8.5 8h7M8.5 11.4h7" />
+      {/* Flèche de retour : une facture qu'on annule ou corrige, pas une nouvelle vente. */}
+      <path d="M9.5 16.8a3 3 0 1 0 1-3.6" />
+      <path d="M9 12v2.2h2.2" />
+    </Icone>
+  );
+}

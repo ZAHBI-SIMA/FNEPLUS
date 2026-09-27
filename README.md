@@ -23,7 +23,7 @@ l'architecture découle de ce choix.
 | 5      | Mobile money, suivi ARF, tableau de bord                        | ✅ terminé                        |
 | 6      | Durcissement, pilote terrain à Abidjan                          | 🟡 outillage prêt, pilote à mener |
 
-**V2 — élargissement des comptes** (multi-boutiques ✅ terminé · marque blanche et IA à venir)
+**V2 — élargissement des comptes** (multi-boutiques ✅, avoirs et rectificatives ✅ · marque blanche et IA à venir)
 **V2 — élargissement des canaux** (USSD/SMS, WhatsApp Business, OCR — à venir, chacun dépend d'un accès tiers non acquis)
 
 ---
@@ -199,6 +199,11 @@ consulte.** Un caissier rattaché à une boutique ne voit qu'elle ; un
 propriétaire ou un comptable voient tout. La vue consolidée vient
 nécessairement du serveur — la base locale d'un terminal ne connaît jamais
 que sa propre caisse.
+
+**Un avoir retranche du chiffre d'affaires, il ne s'ajoute pas et ne
+s'ignore pas.** Un bug pré-existant excluait les avoirs du calcul du jour au
+lieu de les soustraire — trouvé en construisant l'écran qui permet enfin de
+les émettre, corrigé des deux côtés (terminal et serveur).
 
 ---
 

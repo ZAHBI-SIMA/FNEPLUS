@@ -730,3 +730,40 @@ Un numéro de facture de test construit sur `id.slice(0, 8)` produisait donc
 des doublons silencieux — corrigé par un rang explicite plutôt qu'un
 fragment d'UUID, seule façon fiable de garantir l'unicité dans une boucle
 rapide.
+
+---
+
+## D-029 — Avoirs et rectificatives : le modèle existait, l'écran manquait — et un vrai bug de calcul attendait dessous
+
+**Date :** V2 — chantier « avoirs et 3R »
+
+**Constat.** `type` (`AVOIR`, `RECTIFICATIVE`, `ACOMPTE`) et `factureOrigineId`
+existaient dans le modèle depuis le Sprint 2, et la chaîne de synchronisation
+serveur les persistait déjà correctement (`sync.service.ts`). Rien ne
+permettait pourtant d'émettre l'un de ces documents : aucun écran, et
+`ChargeEmission` (le contrat entre l'interface et le worker) ne portait même
+pas ces champs.
+
+**Décision — un seul mécanisme pour trois usages métier.** Le cahier des
+charges du client distingue rectificative, remplacement et rappel comme
+« 3R ». Aucune spécification DGI confirmée ne dit s'il s'agit de trois types
+de documents distincts ou d'un seul type avec trois motifs différents. Plutôt
+que d'inventer des valeurs d'énumération non vérifiables, `type` reste
+`RECTIFICATIVE` pour les trois cas, distingués par un champ `motif` en texte
+libre. Une hypothèse de travail documentée, comme les autres inconnues du
+plan (§1) — pas une réponse déguisée en certitude.
+
+**Bug trouvé en construisant l'écran, pas en le concevant.** `totauxDuJour`
+(local) et `resumeBoutiques` (serveur) excluaient les avoirs du chiffre
+d'affaires du jour (`WHERE type != 'AVOIR'`) depuis le Sprint 2 — un avoir
+émis contre une facture du jour ne changeait donc rien au total affiché,
+alors qu'il doit le faire diminuer d'autant. Un avoir n'est pas une vente
+qu'on ignore, c'est une vente qu'on retranche. Corrigé pour soustraire son
+montant plutôt que l'exclure, des deux côtés (web et API), avec un test qui
+aurait échoué sur l'ancien comportement.
+
+**Ce que ça n'a pas touché.** Une facture rectificative reste additive : elle
+corrige l'avenir, elle ne réécrit pas ce qu'un jour antérieur a déjà compté —
+recalculer rétroactivement les totaux d'un jour passé exigerait de savoir
+quelle facture chaque rectificative remplace _dans le calcul du chiffre
+d'affaires_, une portée plus large que ce sprint.

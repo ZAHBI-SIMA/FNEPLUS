@@ -24,6 +24,7 @@ import { EcranAVerifier } from './EcranAVerifier';
 import { EcranRapports } from './EcranRapports';
 import { EcranAide } from './EcranAide';
 import { EcranBoutiques } from './EcranBoutiques';
+import { EcranAvoir } from './EcranAvoir';
 import { TuileARF } from './TuileARF';
 import {
   IconeAide,
@@ -31,6 +32,7 @@ import {
   IconeAssistantIA,
   IconeAssistantWhatsApp,
   IconeAVerifier,
+  IconeAvoir,
   IconeClients,
   IconeFinancement,
   IconeJournal,
@@ -41,7 +43,15 @@ import {
 } from './IconesNavigation';
 
 type Onglet =
-  'VENTE' | 'ARTICLES' | 'CLIENTS' | 'JOURNAL' | 'A_VERIFIER' | 'RAPPORTS' | 'BOUTIQUES' | 'AIDE';
+  | 'VENTE'
+  | 'ARTICLES'
+  | 'CLIENTS'
+  | 'AVOIRS'
+  | 'JOURNAL'
+  | 'A_VERIFIER'
+  | 'RAPPORTS'
+  | 'BOUTIQUES'
+  | 'AIDE';
 type ComposantIcone = typeof IconeVente;
 
 /** La vente est en tête : c'est l'écran ouvert cent fois par jour. */
@@ -53,6 +63,7 @@ const ONGLETS: [Onglet, (etat: EtatTerminal) => string, ComposantIcone][] = [
     IconeArticles,
   ],
   ['CLIENTS', (e) => `Clients${e.nombreClients > 0 ? ` (${e.nombreClients})` : ''}`, IconeClients],
+  ['AVOIRS', () => 'Avoirs et rectificatives', IconeAvoir],
   ['JOURNAL', () => 'Journal', IconeJournal],
   // N'apparaît que s'il y a effectivement quelque chose à vérifier : un onglet
   // toujours vide finit par ne plus être regardé du tout.
@@ -334,6 +345,8 @@ export function TableauDeBordTerminal() {
             <EcranArticles surChangement={() => void rafraichir()} />
           ) : onglet === 'CLIENTS' ? (
             <EcranClients surChangement={() => void rafraichir()} />
+          ) : onglet === 'AVOIRS' ? (
+            <EcranAvoir surEmission={setRecu} surChangement={() => void rafraichir()} />
           ) : onglet === 'A_VERIFIER' ? (
             <EcranAVerifier surChangement={setEtat} />
           ) : onglet === 'RAPPORTS' ? (
