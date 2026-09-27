@@ -48,6 +48,7 @@ import { synchroniser } from '@/lib/synchronisation';
 import { appelerApi, ErreurApi } from '@/lib/api-client';
 import type {
   ChargeClient,
+  ChargeCreerBoutique,
   ChargeProduit,
   ChargeConnexion,
   ChargeEmission,
@@ -57,7 +58,9 @@ import type {
   KpisEntreprise,
   ReponseTerminal,
   RequeteTerminal,
+  ResultatBoutiques,
   ResultatConnexion,
+  ResultatCreerBoutique,
   ResultatEmission,
   ResultatPaiementMobile,
   SituationARF,
@@ -452,6 +455,25 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
       const session = lireSession(base);
       sessionRequise(session);
       return appelerApi<KpisEntreprise>('/api/v1/kpis/entreprise', { jeton: session.jeton });
+    }
+
+    case 'RESUME_BOUTIQUES': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      return appelerApi<ResultatBoutiques>('/api/v1/entreprises/points-de-vente/resume', {
+        jeton: session.jeton,
+      });
+    }
+
+    case 'CREER_BOUTIQUE': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      const charge = requete.charge as ChargeCreerBoutique;
+      return appelerApi<ResultatCreerBoutique>('/api/v1/entreprises/points-de-vente', {
+        methode: 'POST',
+        jeton: session.jeton,
+        corps: charge,
+      });
     }
 
     default:

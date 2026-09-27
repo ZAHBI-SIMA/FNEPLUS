@@ -6,6 +6,7 @@ import {
   regimeFiscalSchema,
   roleSchema,
   telephoneIvoirien,
+  uuidSchema,
   ValidationZod,
 } from '../commun/validation.js';
 import { Publique, Roles, SessionCourante, type Session } from '../commun/auth.garde.js';
@@ -25,6 +26,14 @@ const ajoutUtilisateurSchema = z.object({
   telephone: telephoneIvoirien,
   nom: z.string().trim().min(2).max(120),
   role: roleSchema,
+  // Rattache l'utilisateur à une seule boutique (droits différenciés) ;
+  // absent, il voit toutes les boutiques de l'entreprise.
+  pointDeVenteId: uuidSchema.optional(),
+});
+
+const pointDeVenteSchema = z.object({
+  libelle: z.string().trim().min(2, 'Le nom de la boutique est obligatoire.').max(120),
+  adresse: z.string().trim().max(300).optional(),
 });
 
 @Controller('api/v1/entreprises')
@@ -53,5 +62,26 @@ export class EntreprisesController {
     @Body(new ValidationZod(ajoutUtilisateurSchema)) corps: z.infer<typeof ajoutUtilisateurSchema>,
   ) {
     return this.entreprises.ajouterUtilisateur(session.entrepriseId, corps);
+  }
+
+  // Même raison que pour l'ajout d'un utilisateur : ouvrir une nouvelle
+  // boutique engage l'entreprise (numérotation, transmission DGI), seul le
+  // propriétaire en décide.
+  @Roles('PROPRIETAIRE')
+  @Post('points-de-vente')
+  @HttpCode(HttpStatus.CREATED)
+  creerPointDeVente(
+    @SessionCourante() session: Session,
+    @Body(new ValidationZod(pointDeVenteSchema)) corps: z.infer<typeof pointDeVenteSchema>,
+  ) {
+    return this.entreprises.creerPointDeVente(session.entrepriseId, corps);
+  }
+
+  // Un caissier rattaché à une boutique (droits différenciés) ne voit que la
+  // sienne ; un propriétaire ou un comptable, sans boutique assignée, voient
+  // la vue consolidée sur l'ensemble.
+  @Get('points-de-vente/resume')
+  resumeBoutiques(@SessionCourante() session: Session) {
+    return this.entreprises.resumeBoutiques(session.entrepriseId, session.pointDeVenteId);
   }
 }

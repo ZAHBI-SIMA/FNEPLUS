@@ -452,3 +452,156 @@ describe('isolation multi-tenant', () => {
     expect(tentative.statut).toBe(404);
   });
 });
+
+/* ------------------------------------------------------------------ */
+
+describe('multi-boutiques', () => {
+  it('génère un préfixe de numérotation distinct pour chaque nouvelle boutique', async () => {
+    const proprio = await inscrireEtConnecter('30');
+
+    const deuxieme = await appeler('POST', '/api/v1/entreprises/points-de-vente', {
+      corps: { libelle: 'Boutique Marcory' },
+      jeton: proprio.jeton,
+    });
+    const troisieme = await appeler('POST', '/api/v1/entreprises/points-de-vente', {
+      corps: { libelle: 'Boutique Yopougon' },
+      jeton: proprio.jeton,
+    });
+
+    expect(deuxieme.statut).toBe(201);
+    expect(deuxieme.corps).toMatchObject({ code: 'PDV02' });
+    expect(troisieme.corps).toMatchObject({ code: 'PDV03' });
+  });
+
+  it('refuse à un caissier de créer une boutique', async () => {
+    const proprio = await inscrireEtConnecter('31');
+    const telephoneCaissier = '+2250700000310';
+
+    await appeler('POST', '/api/v1/entreprises/utilisateurs', {
+      corps: { telephone: telephoneCaissier, nom: 'Caissier test', role: 'CAISSIER' },
+      jeton: proprio.jeton,
+    });
+    await appeler('POST', '/api/v1/auth/demander-code', {
+      corps: { telephone: telephoneCaissier },
+    });
+    const code = sms.envoyes.at(-1)?.contenu.match(/\b(\d{6})\b/)?.[1];
+    const connexion = await appeler('POST', '/api/v1/auth/verifier-code', {
+      corps: { telephone: telephoneCaissier, code },
+    });
+
+    const tentative = await appeler('POST', '/api/v1/entreprises/points-de-vente', {
+      corps: { libelle: 'Boutique pirate' },
+      jeton: connexion.corps!['jeton'] as string,
+    });
+
+    expect(tentative.statut).toBe(403);
+  });
+
+  it('consolide l’activité du jour à travers toutes les boutiques pour le propriétaire', async () => {
+    const proprio = await inscrireEtConnecter('32');
+    const seconde = await appeler('POST', '/api/v1/entreprises/points-de-vente', {
+      corps: { libelle: 'Boutique Marcory' },
+      jeton: proprio.jeton,
+    });
+    const secondePdvId = seconde.corps!['id'] as string;
+
+    // Une facture dans chaque boutique, posée directement en base — la
+    // chaîne d'émission complète est déjà couverte ailleurs. Les huit premiers
+    // caractères d'un UUIDv7 encodent l'horodatage : deux identifiants générés
+    // à quelques millisecondes d'écart les partagent, d'où le numéro de rang
+    // explicite plutôt qu'un fragment d'UUID pour garantir l'unicité.
+    let rang = 0;
+    for (const [pdvId, montant] of [
+      [proprio.pointDeVenteId, 10_000],
+      [secondePdvId, 25_000],
+    ] as const) {
+      rang++;
+      await admin`
+        INSERT INTO factures (
+          id, entreprise_id, point_de_vente_id, terminal_id, type, statut, numero,
+          emise_le, client_nom, total_ht, total_tva, total_ttc, totaux, lignes,
+          version_referentiel, hash_precedent, hash
+        ) VALUES (
+          ${uuidv7()}, ${proprio.entrepriseId}, ${pdvId}, ${uuidv7()}, 'FACTURE',
+          'EMISE_LOCALEMENT', ${'F-' + rang}, now(), 'Client test',
+          ${Math.round(montant / 1.18)}, ${montant - Math.round(montant / 1.18)}, ${montant},
+          '{}'::jsonb, '[]'::jsonb, '2026.01', ${'0'.repeat(64)}, ${'hash-' + pdvId}
+        )
+      `;
+    }
+
+    const resume = await appeler('GET', '/api/v1/entreprises/points-de-vente/resume', {
+      jeton: proprio.jeton,
+    });
+
+    expect(resume.statut).toBe(200);
+    const lignes = resume.corps as unknown as {
+      code: string;
+      facturesDuJour: number;
+      caDuJourTTC: number;
+    }[];
+    expect(lignes).toHaveLength(2);
+    expect(lignes.find((l) => l.code === 'PDV01')).toMatchObject({
+      facturesDuJour: 1,
+      caDuJourTTC: 10_000,
+    });
+    expect(lignes.find((l) => l.code === 'PDV02')).toMatchObject({
+      facturesDuJour: 1,
+      caDuJourTTC: 25_000,
+    });
+  });
+
+  it('ne montre à un caissier rattaché à une boutique que celle-ci', async () => {
+    const proprio = await inscrireEtConnecter('33');
+    const seconde = await appeler('POST', '/api/v1/entreprises/points-de-vente', {
+      corps: { libelle: 'Boutique Marcory' },
+      jeton: proprio.jeton,
+    });
+    const secondePdvId = seconde.corps!['id'] as string;
+
+    const telephoneCaissier = '+2250700000330';
+    await appeler('POST', '/api/v1/entreprises/utilisateurs', {
+      corps: {
+        telephone: telephoneCaissier,
+        nom: 'Caissier Marcory',
+        role: 'CAISSIER',
+        pointDeVenteId: secondePdvId,
+      },
+      jeton: proprio.jeton,
+    });
+    await appeler('POST', '/api/v1/auth/demander-code', {
+      corps: { telephone: telephoneCaissier },
+    });
+    const code = sms.envoyes.at(-1)?.contenu.match(/\b(\d{6})\b/)?.[1];
+    const connexion = await appeler('POST', '/api/v1/auth/verifier-code', {
+      corps: { telephone: telephoneCaissier, code },
+    });
+
+    const resume = await appeler('GET', '/api/v1/entreprises/points-de-vente/resume', {
+      jeton: connexion.corps!['jeton'] as string,
+    });
+
+    const lignes = resume.corps as unknown as { id: string }[];
+    expect(lignes).toHaveLength(1);
+    expect(lignes[0]!.id).toBe(secondePdvId);
+  });
+
+  it('isole le résumé des boutiques entre deux entreprises', async () => {
+    const a = await inscrireEtConnecter('34');
+    const b = await inscrireEtConnecter('35');
+
+    const resumeA = await appeler('GET', '/api/v1/entreprises/points-de-vente/resume', {
+      jeton: a.jeton,
+    });
+    const resumeB = await appeler('GET', '/api/v1/entreprises/points-de-vente/resume', {
+      jeton: b.jeton,
+    });
+
+    expect((resumeA.corps as unknown as { id: string }[]).map((l) => l.id)).toEqual([
+      a.pointDeVenteId,
+    ]);
+    expect((resumeB.corps as unknown as { id: string }[]).map((l) => l.id)).toEqual([
+      b.pointDeVenteId,
+    ]);
+  });
+});

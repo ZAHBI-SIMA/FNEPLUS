@@ -28,6 +28,12 @@ export interface Session {
   role: RoleUtilisateur;
   nom: string;
   terminalId?: string;
+  /**
+   * Boutique à laquelle l'utilisateur est rattaché. Absent pour un
+   * propriétaire ou un comptable, qui voient toutes les boutiques de
+   * l'entreprise ; renseigné pour un caissier affecté à une boutique précise.
+   */
+  pointDeVenteId?: string;
 }
 
 export const CLE_PUBLIQUE = 'route_publique';

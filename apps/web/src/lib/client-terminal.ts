@@ -12,6 +12,7 @@ import type {
   ActionTerminal,
   ChargeClient,
   ChargeConnexion,
+  ChargeCreerBoutique,
   ChargeEmission,
   ChargeEncaissementEspeces,
   ChargeInscription,
@@ -22,8 +23,10 @@ import type {
   KpisEntreprise,
   ReponseTerminal,
   RequeteTerminal,
+  ResultatBoutiques,
   ResultatClients,
   ResultatConnexion,
+  ResultatCreerBoutique,
   ResultatEmission,
   ResultatAnomalies,
   ResultatPaiementMobile,
@@ -190,6 +193,14 @@ class ClientTerminal {
 
   kpisEntreprise(): Promise<KpisEntreprise> {
     return this.appeler<KpisEntreprise>('KPIS_ENTREPRISE');
+  }
+
+  resumeBoutiques(): Promise<ResultatBoutiques> {
+    return this.appeler<ResultatBoutiques>('RESUME_BOUTIQUES');
+  }
+
+  creerBoutique(charge: ChargeCreerBoutique): Promise<ResultatCreerBoutique> {
+    return this.appeler<ResultatCreerBoutique>('CREER_BOUTIQUE', charge);
   }
 }
 

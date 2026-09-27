@@ -39,7 +39,9 @@ export type ActionTerminal =
   | 'DEMANDER_PAIEMENT_MOBILE'
   | 'ETAT_REGLEMENT'
   | 'SITUATION_ARF'
-  | 'KPIS_ENTREPRISE';
+  | 'KPIS_ENTREPRISE'
+  | 'RESUME_BOUTIQUES'
+  | 'CREER_BOUTIQUE';
 
 export interface RequeteTerminal {
   id: number;
@@ -226,4 +228,29 @@ export interface KpisEntreprise {
     nombreCertifiees: number;
     partDansLeDelaiPourcent: number | null;
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Multi-boutiques (V2 — élargissement des comptes)                    */
+/* ------------------------------------------------------------------ */
+
+export interface ResumeBoutique {
+  id: string;
+  libelle: string;
+  code: string;
+  facturesDuJour: number;
+  caDuJourTTC: number;
+}
+
+export type ResultatBoutiques = ResumeBoutique[];
+
+export interface ChargeCreerBoutique {
+  libelle: string;
+  adresse?: string;
+}
+
+export interface ResultatCreerBoutique {
+  id: string;
+  libelle: string;
+  code: string;
 }

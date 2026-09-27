@@ -23,6 +23,9 @@ l'architecture découle de ce choix.
 | 5      | Mobile money, suivi ARF, tableau de bord                        | ✅ terminé                        |
 | 6      | Durcissement, pilote terrain à Abidjan                          | 🟡 outillage prêt, pilote à mener |
 
+**V2 — élargissement des comptes** (multi-boutiques ✅ terminé · marque blanche et IA à venir)
+**V2 — élargissement des canaux** (USSD/SMS, WhatsApp Business, OCR — à venir, chacun dépend d'un accès tiers non acquis)
+
 ---
 
 ## Démarrage
@@ -190,6 +193,12 @@ qu'un zéro qui se lirait comme une performance.
 `infra/tester-restauration.sh` restaure réellement la dernière sauvegarde
 dans une base temporaire et compare les effectifs table par table, avant de
 la supprimer.
+
+**Le multi-boutiques distingue les droits d'un compte de la donnée qu'il
+consulte.** Un caissier rattaché à une boutique ne voit qu'elle ; un
+propriétaire ou un comptable voient tout. La vue consolidée vient
+nécessairement du serveur — la base locale d'un terminal ne connaît jamais
+que sa propre caisse.
 
 ---
 

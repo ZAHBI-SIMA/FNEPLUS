@@ -23,6 +23,7 @@ import { RecuFacture } from './RecuFacture';
 import { EcranAVerifier } from './EcranAVerifier';
 import { EcranRapports } from './EcranRapports';
 import { EcranAide } from './EcranAide';
+import { EcranBoutiques } from './EcranBoutiques';
 import { TuileARF } from './TuileARF';
 import {
   IconeAide,
@@ -39,7 +40,8 @@ import {
   IconeVente,
 } from './IconesNavigation';
 
-type Onglet = 'VENTE' | 'ARTICLES' | 'CLIENTS' | 'JOURNAL' | 'A_VERIFIER' | 'RAPPORTS' | 'AIDE';
+type Onglet =
+  'VENTE' | 'ARTICLES' | 'CLIENTS' | 'JOURNAL' | 'A_VERIFIER' | 'RAPPORTS' | 'BOUTIQUES' | 'AIDE';
 type ComposantIcone = typeof IconeVente;
 
 /** La vente est en tête : c'est l'écran ouvert cent fois par jour. */
@@ -56,6 +58,7 @@ const ONGLETS: [Onglet, (etat: EtatTerminal) => string, ComposantIcone][] = [
   // toujours vide finit par ne plus être regardé du tout.
   ['A_VERIFIER', (e) => `À vérifier (${e.nombreAnomalies})`, IconeAVerifier],
   ['RAPPORTS', () => 'Rapports et KPI', IconeRapports],
+  ['BOUTIQUES', () => 'Boutiques', IconeMultiBoutiques],
   ['AIDE', () => 'Aide et support', IconeAide],
 ];
 
@@ -67,7 +70,6 @@ const ONGLETS: [Onglet, (etat: EtatTerminal) => string, ComposantIcone][] = [
  * Sprints et jalons repris de `docs/PLAN-DEVELOPPEMENT.md`.
  */
 const FONCTIONNALITES_PREVUES: { libelle: string; jalon: string; Icone: ComposantIcone }[] = [
-  { libelle: 'Multi-boutiques', jalon: 'V2', Icone: IconeMultiBoutiques },
   { libelle: 'Assistant WhatsApp', jalon: 'V2', Icone: IconeAssistantWhatsApp },
   { libelle: 'OCR de reçus', jalon: 'V2', Icone: IconeOCR },
   { libelle: 'Assistant fiscal IA', jalon: 'V2', Icone: IconeAssistantIA },
@@ -336,6 +338,8 @@ export function TableauDeBordTerminal() {
             <EcranAVerifier surChangement={setEtat} />
           ) : onglet === 'RAPPORTS' ? (
             <EcranRapports />
+          ) : onglet === 'BOUTIQUES' ? (
+            <EcranBoutiques peutCreer={session.role === 'PROPRIETAIRE'} />
           ) : onglet === 'AIDE' ? (
             <EcranAide />
           ) : (

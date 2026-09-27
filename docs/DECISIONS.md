@@ -695,3 +695,38 @@ valider la couche d'anticorruption une fois l'accès obtenu.
 **Ce qui reste hors du périmètre d'un agent de développement.** L'inscription
 elle-même exige l'identité d'une entreprise réelle et un échange humain avec
 le support DGI — même nature de limite que le pilote terrain ([[D-026]]).
+
+---
+
+## D-028 — Multi-boutiques : le schéma le prévoyait déjà, il manquait juste la porte d'entrée
+
+**Date :** V2 — chantier « élargissement des comptes »
+
+**Constat.** Les factures et les terminaux portaient `point_de_vente_id`
+depuis le socle (Sprint 0) ; l'inscription créait déjà « le premier point de
+vente, modifiable ensuite » selon son propre commentaire. Ce qui manquait
+n'était pas le schéma, mais l'endpoint pour en ajouter un second — la
+fonctionnalité la moins spéculative des deux chantiers V2, contrairement à
+USSD/WhatsApp Business/OCR qui dépendent chacun d'un accès tiers non acquis.
+
+**Décision — droits différenciés.** Un utilisateur reste par défaut rattaché
+à `point_de_vente_id = NULL` (rétrocompatible : tout compte existant voit
+tout, sans migration de données). Un caissier peut désormais être affecté à
+une boutique précise à sa création ; il n'en voit alors que l'activité dans
+la vue consolidée. Le rôle propriétaire n'est pas gagné par restriction — la
+boutique du caissier limite ce qu'il voit, elle ne remplace pas le contrôle
+par rôle déjà en place.
+
+**Décision — vue consolidée, pas locale.** La base d'un terminal ne connaît
+que sa propre caisse hors ligne ; savoir combien deux boutiques ont
+encaissé aujourd'hui exige nécessairement le serveur, à travers tous les
+terminaux de chaque boutique. C'est un nouvel écran (`Boutiques`), pas une
+extension du Journal local — les deux sources de vérité ne se mélangent pas.
+
+**Piège évité en test.** Les huit premiers caractères d'un UUIDv7 encodent
+l'horodatage à la milliseconde près ; deux identifiants générés à quelques
+millisecondes d'écart (le temps d'une boucle de test) partagent ce préfixe.
+Un numéro de facture de test construit sur `id.slice(0, 8)` produisait donc
+des doublons silencieux — corrigé par un rang explicite plutôt qu'un
+fragment d'UUID, seule façon fiable de garantir l'unicité dans une boucle
+rapide.

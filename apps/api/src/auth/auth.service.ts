@@ -41,6 +41,7 @@ interface CompteResolu {
   role: RoleUtilisateur;
   nom: string;
   a_un_pin: boolean;
+  point_de_vente_id: string | null;
 }
 
 export interface ResultatConnexion {
@@ -221,6 +222,7 @@ export class AuthService {
       entrepriseId: compte.entreprise_id,
       role: compte.role,
       nom: compte.nom,
+      ...(compte.point_de_vente_id ? { pointDeVenteId: compte.point_de_vente_id } : {}),
     };
 
     return {
