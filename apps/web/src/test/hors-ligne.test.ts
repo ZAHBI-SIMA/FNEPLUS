@@ -125,13 +125,13 @@ describe('émission hors ligne', () => {
   });
 
   it('ne consomme pas de numéro quand l’émission échoue', async () => {
-    const plageAvant = plageActive(base, TERMINAL_TEST)!;
+    const plageAvant = plageActive(base, TERMINAL_TEST, PDV_TEST)!;
 
     await expect(
       emettreFacture(base, contexte(), { clientNom: 'X', lignes: [] }),
     ).rejects.toThrow();
 
-    const plageApres = plageActive(base, TERMINAL_TEST)!;
+    const plageApres = plageActive(base, TERMINAL_TEST, PDV_TEST)!;
     expect(plageApres.curseur).toBe(plageAvant.curseur);
     expect(base.interroger('SELECT id FROM factures')).toHaveLength(0);
     expect(compterEnAttente(base)).toBe(0);
@@ -237,7 +237,7 @@ describe('endurance — 500 factures hors ligne', () => {
     expect(compterEnAttente(base)).toBe(500);
 
     // 4. Réserve : exactement 500 numéros consommés.
-    expect(numerosRestants(plageActive(base, TERMINAL_TEST)!)).toBe(500);
+    expect(numerosRestants(plageActive(base, TERMINAL_TEST, PDV_TEST)!)).toBe(500);
 
     // 5. Unicité en base, garantie par l'index unique.
     const distincts = base.interroger<{ n: number }>(

@@ -38,11 +38,19 @@ interface EntrepriseApi {
 
 interface PlageApi {
   id: string;
+  pointDeVenteId: string;
   prefixe: string;
   debut: number;
   fin: number;
   longueurCompteur: number;
   allouceLe: string;
+}
+
+interface PointDeVenteAutoriseApi {
+  id: string;
+  libelle: string;
+  code: string;
+  principal: boolean;
 }
 
 export interface ResultatOuverture {
@@ -123,6 +131,7 @@ export async function ouvrirSessionTerminal(
     );
   });
 
+  await synchroniserPointsDeVenteAutorises(base, session);
   await assurerReserveNumeros(base, session);
   await mettreEnCacheReferentiels(base);
 
@@ -130,36 +139,78 @@ export async function ouvrirSessionTerminal(
 }
 
 /**
- * Garantit que le terminal dispose d'une réserve de numéros utilisable.
+ * Met en cache les points de vente que ce terminal est autorisé à facturer
+ * (sélecteur rapide en caisse) : le principal, plus ceux accordés en plus par
+ * le propriétaire. Appelée à la connexion, et rappelable ensuite pour
+ * rafraîchir la liste sans reconnecter le terminal.
+ */
+export async function synchroniserPointsDeVenteAutorises(
+  base: DepotLocal,
+  session: SessionTerminal,
+): Promise<void> {
+  const autorises = await appelerApi<PointDeVenteAutoriseApi[]>(
+    `/api/v1/terminaux/${session.terminalId}/points-de-vente-autorises`,
+    { jeton: session.jeton },
+  );
+
+  base.transaction(() => {
+    for (const pdv of autorises) {
+      base.executer(
+        `INSERT INTO points_de_vente (id, entreprise_id, libelle, code)
+         VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET libelle = excluded.libelle`,
+        [pdv.id, session.entrepriseId, pdv.libelle, pdv.code],
+      );
+      if (!pdv.principal) {
+        base.executer(
+          `INSERT INTO terminaux_points_de_vente (terminal_id, point_de_vente_id)
+           VALUES (?, ?) ON CONFLICT(terminal_id, point_de_vente_id) DO NOTHING`,
+          [session.terminalId, pdv.id],
+        );
+      }
+    }
+  });
+}
+
+/**
+ * Garantit que le terminal dispose d'une réserve de numéros utilisable pour
+ * un point de vente donné (le principal par défaut).
  *
  * Appelée à la connexion, puis à chaque fois que la réserve approche de
  * l'épuisement. C'est la seule opération qui doit impérativement être faite
  * pendant que le réseau est là.
+ *
+ * Filtrée par point de vente, pas seulement par terminal : un terminal
+ * autorisé pour plusieurs points de vente (sélecteur rapide en caisse) tient
+ * une réserve distincte pour chacun, et une réserve pleine sur le principal
+ * ne doit pas masquer l'absence de réserve sur un autre.
  */
 export async function assurerReserveNumeros(
   base: DepotLocal,
   session: SessionTerminal,
+  pointDeVenteId: string = session.pointDeVenteId,
 ): Promise<void> {
   const [restantes] = base.interroger<{ n: number }>(
     `SELECT COALESCE(SUM(fin - curseur + 1), 0) AS n FROM plages_numeros
-      WHERE terminal_id = ? AND cloturee_le IS NULL AND curseur <= fin`,
-    [session.terminalId],
+      WHERE terminal_id = ? AND point_de_vente_id = ? AND cloturee_le IS NULL AND curseur <= fin`,
+    [session.terminalId, pointDeVenteId],
   );
 
   if ((restantes?.n ?? 0) > 100) return;
 
-  const plages = await appelerApi<PlageApi[]>(`/api/v1/terminaux/${session.terminalId}/plages`, {
-    jeton: session.jeton,
-  });
+  const plages = await appelerApi<PlageApi[]>(
+    `/api/v1/terminaux/${session.terminalId}/plages?pointDeVenteId=${pointDeVenteId}`,
+    { jeton: session.jeton },
+  );
 
   // Plages déjà connues du serveur mais absentes en local : cas d'une
   // réinstallation. On les reprend avec leur curseur au début, puis la
   // contrainte d'unicité sur le numéro de facture protège d'un doublon.
   const connues = new Set(
     base
-      .interroger<{ id: string }>('SELECT id FROM plages_numeros WHERE terminal_id = ?', [
-        session.terminalId,
-      ])
+      .interroger<{ id: string }>(
+        'SELECT id FROM plages_numeros WHERE terminal_id = ? AND point_de_vente_id = ?',
+        [session.terminalId, pointDeVenteId],
+      )
       .map((l) => l.id),
   );
 
@@ -169,6 +220,7 @@ export async function assurerReserveNumeros(
     const nouvelle = await appelerApi<PlageApi>(`/api/v1/terminaux/${session.terminalId}/plages`, {
       methode: 'POST',
       jeton: session.jeton,
+      corps: { pointDeVenteId },
     });
     manquantes.push(nouvelle);
   }
@@ -184,7 +236,7 @@ export async function assurerReserveNumeros(
         [
           plage.id,
           session.entrepriseId,
-          session.pointDeVenteId,
+          plage.pointDeVenteId,
           session.terminalId,
           plage.prefixe,
           plage.debut,
@@ -195,7 +247,7 @@ export async function assurerReserveNumeros(
         ],
       );
     }
-    base.journaliser('PLAGES_RECHARGEES', { nombre: manquantes.length });
+    base.journaliser('PLAGES_RECHARGEES', { nombre: manquantes.length, pointDeVenteId });
   });
 }
 

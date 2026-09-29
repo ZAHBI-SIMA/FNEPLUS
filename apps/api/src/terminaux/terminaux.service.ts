@@ -24,11 +24,28 @@ export interface TerminalAppaire {
 
 export interface PlageAllouee {
   id: string;
+  pointDeVenteId: string;
   prefixe: string;
   debut: number;
   fin: number;
   longueurCompteur: number;
   allouceLe: string;
+}
+
+export interface PointDeVenteAutorise {
+  id: string;
+  libelle: string;
+  code: string;
+  /** Point de vente fixé à l'appairage — celui qui ne peut jamais être retiré. */
+  principal: boolean;
+}
+
+export interface TerminalResume {
+  id: string;
+  libelle: string;
+  pointDeVenteId: string;
+  pointDeVenteCode: string;
+  revoque: boolean;
 }
 
 /** Nombre de reprises en cas de collision sur la contrainte d'exclusion. */
@@ -101,11 +118,12 @@ export class TerminauxService {
     entrepriseId: string,
     terminalId: string,
     taille = this.config.TAILLE_PLAGE_NUMEROS,
+    pointDeVenteCibleId?: string,
   ): Promise<PlageAllouee> {
     for (let tentative = 0; tentative < MAX_REPRISES; tentative++) {
       try {
         return await this.bdd.avecTenant(entrepriseId, (tx) =>
-          this.allouerDansTransaction(tx, entrepriseId, terminalId, taille),
+          this.allouerDansTransaction(tx, entrepriseId, terminalId, taille, pointDeVenteCibleId),
         );
       } catch (erreur) {
         // 23P01 = violation de contrainte d'exclusion : une autre allocation a
@@ -127,6 +145,7 @@ export class TerminauxService {
     entrepriseId: string,
     terminalId: string,
     taille: number,
+    pointDeVenteCibleId?: string,
   ): Promise<PlageAllouee> {
     const [terminal] = await tx<{ point_de_vente_id: string; revoque_le: Date | null }[]>`
       SELECT point_de_vente_id, revoque_le FROM terminaux WHERE id = ${terminalId}
@@ -145,15 +164,34 @@ export class TerminauxService {
       });
     }
 
+    // Par défaut, la plage sert le point de vente principal du terminal — le
+    // seul cas jusqu'ici, et le comportement reste identique. Un point de
+    // vente cible différent (sélecteur rapide en caisse) doit avoir été
+    // explicitement autorisé pour ce terminal.
+    const pointDeVenteId = pointDeVenteCibleId ?? terminal.point_de_vente_id;
+
+    if (pointDeVenteId !== terminal.point_de_vente_id) {
+      const [autorise] = await tx<{ point_de_vente_id: string }[]>`
+        SELECT point_de_vente_id FROM terminaux_points_de_vente
+         WHERE terminal_id = ${terminalId} AND point_de_vente_id = ${pointDeVenteId}
+      `;
+      if (!autorise) {
+        throw new ConflictException({
+          code: 'POINT_DE_VENTE_NON_AUTORISE',
+          message: 'Ce terminal n’est pas autorisé à facturer pour ce point de vente.',
+        });
+      }
+    }
+
     const [pdv] = await tx<{ code: string }[]>`
-      SELECT code FROM points_de_vente WHERE id = ${terminal.point_de_vente_id}
+      SELECT code FROM points_de_vente WHERE id = ${pointDeVenteId}
     `;
 
     const prefixe = `${pdv?.code ?? 'PDV01'}-${new Date().getFullYear()}`;
 
     const [borne] = await tx<{ maximum: number | null }[]>`
       SELECT MAX(fin) AS maximum FROM plages_numeros
-       WHERE point_de_vente_id = ${terminal.point_de_vente_id} AND prefixe = ${prefixe}
+       WHERE point_de_vente_id = ${pointDeVenteId} AND prefixe = ${prefixe}
     `;
 
     const debut = (borne?.maximum ?? 0) + 1;
@@ -164,7 +202,7 @@ export class TerminauxService {
       INSERT INTO plages_numeros (
         id, entreprise_id, point_de_vente_id, terminal_id, prefixe, debut, fin, longueur_compteur
       ) VALUES (
-        ${id}, ${entrepriseId}, ${terminal.point_de_vente_id}, ${terminalId},
+        ${id}, ${entrepriseId}, ${pointDeVenteId}, ${terminalId},
         ${prefixe}, ${debut}, ${fin}, ${6}
       )
       RETURNING allouee_le
@@ -172,6 +210,7 @@ export class TerminauxService {
 
     return {
       id,
+      pointDeVenteId,
       prefixe,
       debut,
       fin,
@@ -200,11 +239,16 @@ export class TerminauxService {
     });
   }
 
-  async listerPlages(entrepriseId: string, terminalId: string): Promise<PlageAllouee[]> {
+  async listerPlages(
+    entrepriseId: string,
+    terminalId: string,
+    pointDeVenteId?: string,
+  ): Promise<PlageAllouee[]> {
     return this.bdd.avecTenant(entrepriseId, async (tx) => {
       const lignes = await tx<
         {
           id: string;
+          point_de_vente_id: string;
           prefixe: string;
           debut: number;
           fin: number;
@@ -212,20 +256,117 @@ export class TerminauxService {
           allouee_le: Date;
         }[]
       >`
-        SELECT id, prefixe, debut, fin, longueur_compteur, allouee_le
+        SELECT id, point_de_vente_id, prefixe, debut, fin, longueur_compteur, allouee_le
           FROM plages_numeros
          WHERE terminal_id = ${terminalId} AND cloturee_le IS NULL
+           AND (${pointDeVenteId ?? null}::uuid IS NULL
+                OR point_de_vente_id = ${pointDeVenteId ?? null}::uuid)
          ORDER BY allouee_le ASC
       `;
 
       return lignes.map((l) => ({
         id: l.id,
+        pointDeVenteId: l.point_de_vente_id,
         prefixe: l.prefixe,
         debut: l.debut,
         fin: l.fin,
         longueurCompteur: l.longueur_compteur,
         allouceLe: l.allouee_le.toISOString(),
       }));
+    });
+  }
+
+  /**
+   * Autorise un terminal à facturer aussi au nom d'un autre point de vente
+   * que son point de vente principal (sélecteur rapide en caisse). N'affecte
+   * jamais le point de vente principal ni ses plages existantes — la garantie
+   * de non-collision de la séquence n'est donc jamais mise en jeu pour un
+   * terminal qui n'utilise pas cette fonctionnalité.
+   */
+  async autoriserPointDeVente(
+    entrepriseId: string,
+    terminalId: string,
+    pointDeVenteId: string,
+  ): Promise<void> {
+    await this.bdd.avecTenant(entrepriseId, async (tx) => {
+      const [terminal] = await tx<{ id: string }[]>`
+        SELECT id FROM terminaux WHERE id = ${terminalId}
+      `;
+      if (!terminal) {
+        throw new NotFoundException({
+          code: 'TERMINAL_INTROUVABLE',
+          message: 'Ce terminal n’est pas rattaché à votre entreprise.',
+        });
+      }
+
+      const [pdv] = await tx<{ id: string }[]>`
+        SELECT id FROM points_de_vente WHERE id = ${pointDeVenteId}
+      `;
+      if (!pdv) {
+        throw new NotFoundException({
+          code: 'POINT_DE_VENTE_INTROUVABLE',
+          message: 'Ce point de vente n’existe pas.',
+        });
+      }
+
+      await tx`
+        INSERT INTO terminaux_points_de_vente (entreprise_id, terminal_id, point_de_vente_id)
+        VALUES (${entrepriseId}, ${terminalId}, ${pointDeVenteId})
+        ON CONFLICT (terminal_id, point_de_vente_id) DO NOTHING
+      `;
+    });
+  }
+
+  /** Terminaux de l'entreprise — sert au propriétaire pour choisir qui autoriser sur quel point de vente. */
+  async listerTerminaux(entrepriseId: string): Promise<TerminalResume[]> {
+    return this.bdd.avecTenant(entrepriseId, async (tx) => {
+      const lignes = await tx<
+        { id: string; libelle: string; point_de_vente_id: string; code: string; revoque_le: Date | null }[]
+      >`
+        SELECT t.id, t.libelle, t.point_de_vente_id, pdv.code, t.revoque_le
+          FROM terminaux t
+          JOIN points_de_vente pdv ON pdv.id = t.point_de_vente_id
+         WHERE t.entreprise_id = ${entrepriseId}
+         ORDER BY t.appaire_le ASC
+      `;
+      return lignes.map((l) => ({
+        id: l.id,
+        libelle: l.libelle,
+        pointDeVenteId: l.point_de_vente_id,
+        pointDeVenteCode: l.code,
+        revoque: l.revoque_le !== null,
+      }));
+    });
+  }
+
+  /** Points de vente qu'un terminal peut facturer : le principal, puis ceux autorisés en plus. */
+  async listerPointsDeVenteAutorises(
+    entrepriseId: string,
+    terminalId: string,
+  ): Promise<PointDeVenteAutorise[]> {
+    return this.bdd.avecTenant(entrepriseId, async (tx) => {
+      const [terminal] = await tx<{ point_de_vente_id: string }[]>`
+        SELECT point_de_vente_id FROM terminaux WHERE id = ${terminalId}
+      `;
+      if (!terminal) {
+        throw new NotFoundException({
+          code: 'TERMINAL_INTROUVABLE',
+          message: 'Ce terminal n’est pas rattaché à votre entreprise.',
+        });
+      }
+
+      const lignes = await tx<{ id: string; libelle: string; code: string }[]>`
+        SELECT pdv.id, pdv.libelle, pdv.code
+          FROM points_de_vente pdv
+         WHERE pdv.id = ${terminal.point_de_vente_id}
+            OR pdv.id IN (
+                 SELECT point_de_vente_id FROM terminaux_points_de_vente
+                  WHERE terminal_id = ${terminalId}
+               )
+         ORDER BY pdv.code
+      `;
+
+      return lignes.map((l) => ({ ...l, principal: l.id === terminal.point_de_vente_id }));
     });
   }
 }

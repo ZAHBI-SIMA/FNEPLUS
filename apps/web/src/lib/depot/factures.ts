@@ -85,14 +85,26 @@ function versPlage(l: LignePlage): PlageNumeros {
   };
 }
 
-/** Plage active du terminal : la plus ancienne non clôturée et non épuisée. */
-export function plageActive(base: DepotLocal, terminalId: string): PlageNumeros | null {
+/**
+ * Plage active du terminal pour un point de vente donné : la plus ancienne
+ * non clôturée et non épuisée.
+ *
+ * Filtrée par point de vente, pas seulement par terminal : un terminal
+ * autorisé pour plusieurs points de vente (sélecteur rapide en caisse) tient
+ * une réserve distincte pour chacun, et il ne faut jamais consommer un numéro
+ * de l'un pour une facture émise au nom de l'autre.
+ */
+export function plageActive(
+  base: DepotLocal,
+  terminalId: string,
+  pointDeVenteId: string,
+): PlageNumeros | null {
   const lignes = base.interroger<LignePlage>(
     `SELECT * FROM plages_numeros
-      WHERE terminal_id = ? AND cloturee_le IS NULL AND curseur <= fin
+      WHERE terminal_id = ? AND point_de_vente_id = ? AND cloturee_le IS NULL AND curseur <= fin
       ORDER BY allouee_le ASC
       LIMIT 1`,
-    [terminalId],
+    [terminalId, pointDeVenteId],
   );
   const ligne = lignes[0];
   return ligne ? versPlage(ligne) : null;
@@ -132,10 +144,10 @@ export async function emettreFacture(
   contexte: ContexteEmission,
   demande: DemandeFacture,
 ): Promise<ResultatEmissionDepot> {
-  const plage = plageActive(base, contexte.terminalId);
+  const plage = plageActive(base, contexte.terminalId, contexte.pointDeVenteId);
   if (!plage) {
     throw new ErreurEmission(
-      'Aucun numéro disponible sur ce terminal. Connectez-vous quelques secondes pour recharger une réserve.',
+      'Aucun numéro disponible pour ce point de vente. Connectez-vous quelques secondes pour recharger une réserve.',
     );
   }
 

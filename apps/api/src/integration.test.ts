@@ -645,3 +645,133 @@ describe('multi-boutiques', () => {
     expect(ligne.caDuJourTTC).toBe(0);
   });
 });
+
+describe('établissements et sélecteur rapide en caisse', () => {
+  it('crée des établissements avec un code de rang croissant', async () => {
+    const proprio = await inscrireEtConnecter('40');
+
+    const premier = await appeler('POST', '/api/v1/entreprises/etablissements', {
+      corps: { libelle: 'Site Cocody' },
+      jeton: proprio.jeton,
+    });
+    const second = await appeler('POST', '/api/v1/entreprises/etablissements', {
+      corps: { libelle: 'Site Yopougon' },
+      jeton: proprio.jeton,
+    });
+
+    expect(premier.statut).toBe(201);
+    expect(premier.corps).toMatchObject({ code: 'ETB01' });
+    expect(second.corps).toMatchObject({ code: 'ETB02' });
+
+    const liste = await appeler('GET', '/api/v1/entreprises/etablissements', {
+      jeton: proprio.jeton,
+    });
+    expect((liste.corps as unknown as { code: string }[]).map((e) => e.code)).toEqual([
+      'ETB01',
+      'ETB02',
+    ]);
+  });
+
+  it('refuse à un caissier de créer un établissement', async () => {
+    const proprio = await inscrireEtConnecter('41');
+    const telephoneCaissier = '+2250700000411';
+
+    await appeler('POST', '/api/v1/entreprises/utilisateurs', {
+      corps: { telephone: telephoneCaissier, nom: 'Caissier test', role: 'CAISSIER' },
+      jeton: proprio.jeton,
+    });
+    await appeler('POST', '/api/v1/auth/demander-code', {
+      corps: { telephone: telephoneCaissier },
+    });
+    const code = sms.envoyes.at(-1)?.contenu.match(/\b(\d{6})\b/)?.[1];
+    const connexion = await appeler('POST', '/api/v1/auth/verifier-code', {
+      corps: { telephone: telephoneCaissier, code },
+    });
+
+    const tentative = await appeler('POST', '/api/v1/entreprises/etablissements', {
+      corps: { libelle: 'Site pirate' },
+      jeton: connexion.corps!['jeton'] as string,
+    });
+
+    expect(tentative.statut).toBe(403);
+  });
+
+  it('refuse d’allouer une plage pour un point de vente non autorisé, puis l’accepte une fois autorisé', async () => {
+    const proprio = await inscrireEtConnecter('42');
+
+    const secondePdv = await appeler('POST', '/api/v1/entreprises/points-de-vente', {
+      corps: { libelle: 'Boutique Marcory' },
+      jeton: proprio.jeton,
+    });
+    const secondePdvId = secondePdv.corps!['id'] as string;
+
+    const appairage = await appeler('POST', '/api/v1/terminaux/appairage', {
+      corps: { pointDeVenteId: proprio.pointDeVenteId, libelle: 'Caisse mobile' },
+      jeton: proprio.jeton,
+    });
+    const terminalId = appairage.corps!['terminalId'] as string;
+
+    // Sans autorisation explicite : refusé, la séquence du point de vente
+    // secondaire ne peut pas être entamée par ce terminal.
+    const refus = await appeler('POST', `/api/v1/terminaux/${terminalId}/plages`, {
+      corps: { pointDeVenteId: secondePdvId },
+      jeton: proprio.jeton,
+    });
+    expect(refus.statut).toBe(409);
+    expect(refus.corps).toMatchObject({ code: 'POINT_DE_VENTE_NON_AUTORISE' });
+
+    const autorisation = await appeler(
+      'POST',
+      `/api/v1/terminaux/${terminalId}/points-de-vente-autorises`,
+      { corps: { pointDeVenteId: secondePdvId }, jeton: proprio.jeton },
+    );
+    expect(autorisation.statut).toBe(204);
+
+    const plagePrincipale = await appeler('POST', `/api/v1/terminaux/${terminalId}/plages`, {
+      jeton: proprio.jeton,
+    });
+    const plageSecondaire = await appeler('POST', `/api/v1/terminaux/${terminalId}/plages`, {
+      corps: { pointDeVenteId: secondePdvId },
+      jeton: proprio.jeton,
+    });
+
+    expect(plagePrincipale.statut).toBe(201);
+    expect(plagePrincipale.corps).toMatchObject({ prefixe: `PDV01-${new Date().getFullYear()}` });
+    expect(plageSecondaire.statut).toBe(201);
+    expect(plageSecondaire.corps).toMatchObject({
+      prefixe: `PDV02-${new Date().getFullYear()}`,
+      debut: 1,
+      fin: 500,
+    });
+
+    const autorises = await appeler(
+      'GET',
+      `/api/v1/terminaux/${terminalId}/points-de-vente-autorises`,
+      { jeton: proprio.jeton },
+    );
+    const lignes = autorises.corps as unknown as { id: string; principal: boolean }[];
+    expect(lignes).toHaveLength(2);
+    expect(lignes.find((l) => l.id === proprio.pointDeVenteId)).toMatchObject({ principal: true });
+    expect(lignes.find((l) => l.id === secondePdvId)).toMatchObject({ principal: false });
+  });
+
+  it('isole l’autorisation d’un terminal entre deux entreprises', async () => {
+    const a = await inscrireEtConnecter('43');
+    const b = await inscrireEtConnecter('44');
+
+    const appairageA = await appeler('POST', '/api/v1/terminaux/appairage', {
+      corps: { pointDeVenteId: a.pointDeVenteId, libelle: 'Caisse A' },
+      jeton: a.jeton,
+    });
+    const terminalA = appairageA.corps!['terminalId'] as string;
+
+    const tentative = await appeler(
+      'POST',
+      `/api/v1/terminaux/${terminalA}/points-de-vente-autorises`,
+      { corps: { pointDeVenteId: b.pointDeVenteId }, jeton: b.jeton },
+    );
+
+    // Sous le contexte tenant de B, le terminal de A n'existe simplement pas.
+    expect(tentative.statut).toBe(404);
+  });
+});

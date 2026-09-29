@@ -12,7 +12,7 @@ import {
 import { terminal } from '@/lib/client-terminal';
 import type { LigneProduit } from '@/lib/depot/produits';
 import type { LigneClient } from '@/lib/depot/clients';
-import type { ResultatEmission } from '@/lib/protocole-terminal';
+import type { PointDeVenteTerminal, ResultatEmission } from '@/lib/protocole-terminal';
 
 /**
  * Écran de vente.
@@ -57,6 +57,32 @@ export function EcranVente({
   const [libreOuvert, setLibreOuvert] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
+  const [pointsDeVente, setPointsDeVente] = useState<PointDeVenteTerminal[]>([]);
+  const [pointDeVenteId, setPointDeVenteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void terminal()
+      .pointsDeVenteTerminal()
+      .then((liste) => {
+        setPointsDeVente(liste);
+        setPointDeVenteId((actuel) => actuel ?? (liste.find((p) => p.principal) ?? liste[0])?.id ?? null);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Un point de vente fraîchement sélectionné n'a peut-être jamais servi sur
+  // ce terminal : on tente de lui précharger une réserve de numéros pendant
+  // que le réseau est là. Hors ligne, cet appel échoue en silence — l'émission
+  // signalera elle-même l'absence de réserve le moment venu, avec un message
+  // clair plutôt qu'un blocage muet.
+  useEffect(() => {
+    const pdv = pointsDeVente.find((p) => p.id === pointDeVenteId);
+    if (pdv && !pdv.principal) {
+      void terminal()
+        .assurerReserve({ pointDeVenteId: pdv.id })
+        .catch(() => {});
+    }
+  }, [pointDeVenteId, pointsDeVente]);
 
   useEffect(() => {
     void terminal()
@@ -154,6 +180,7 @@ export function EcranVente({
         ...(clientChoisi ? { clientId: clientChoisi.id } : {}),
         ...(clientChoisi?.adresse ? { clientAdresse: clientChoisi.adresse } : {}),
         lignes: panier.map(({ cle: _cle, ...ligne }) => ligne),
+        ...(pointDeVenteId ? { pointDeVenteId } : {}),
       });
       setPanier([]);
       setClientChoisi(null);
@@ -164,7 +191,7 @@ export function EcranVente({
     } finally {
       setOccupe(false);
     }
-  }, [panier, clientChoisi, surEmission, surChangement]);
+  }, [panier, clientChoisi, pointDeVenteId, surEmission, surChangement]);
 
   return (
     <>
@@ -176,6 +203,18 @@ export function EcranVente({
             ? 'panier vide'
             : `${panier.length} ligne${panier.length > 1 ? 's' : ''}`}
         </p>
+        {pointsDeVente.length > 1 ? (
+          <label className="fne-champ fne-champ--pdv">
+            <span>Facturer au nom de</span>
+            <select value={pointDeVenteId ?? ''} onChange={(e) => setPointDeVenteId(e.target.value)}>
+              {pointsDeVente.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.libelle} ({p.code})
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
       </header>
 
       {erreur ? <Alerte ton="erreur">{erreur}</Alerte> : null}

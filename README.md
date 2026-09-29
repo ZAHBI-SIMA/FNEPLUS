@@ -23,7 +23,7 @@ l'architecture découle de ce choix.
 | 5      | Mobile money, suivi ARF, tableau de bord                        | ✅ terminé                        |
 | 6      | Durcissement, pilote terrain à Abidjan                          | 🟡 outillage prêt, pilote à mener |
 
-**V2 — élargissement des comptes** (multi-boutiques ✅, avoirs et rectificatives ✅ · marque blanche et IA à venir)
+**V2 — élargissement des comptes** (multi-boutiques ✅, avoirs et rectificatives ✅, établissements et sélecteur rapide en caisse ✅ · débours, taxes spécifiques, modèles personnalisables, archivage 10 ans, cabinet comptable, achats/stock/rapprochement bancaire à venir)
 **V2 — élargissement des canaux** (USSD/SMS, WhatsApp Business, OCR — à venir, chacun dépend d'un accès tiers non acquis)
 
 ---
@@ -204,6 +204,12 @@ que sa propre caisse.
 s'ignore pas.** Un bug pré-existant excluait les avoirs du calcul du jour au
 lieu de les soustraire — trouvé en construisant l'écran qui permet enfin de
 les émettre, corrigé des deux côtés (terminal et serveur).
+
+**Le sélecteur rapide en caisse étend la numérotation sans jamais toucher
+au point de vente principal d'un terminal.** Un point de vente supplémentaire
+autorisé obtient sa propre plage de numéros, allouée et vérifiée
+indépendamment ; un terminal qui n'utilise pas cette fonctionnalité se
+comporte exactement comme avant.
 
 ---
 

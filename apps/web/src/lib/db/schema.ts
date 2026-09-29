@@ -202,6 +202,31 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_paiements_facture ON paiements(facture_id);
     `,
   },
+  {
+    version: 3,
+    nom: 'etablissements',
+    sql: `
+      -- Sites déclarés, mis en cache localement pour l'affichage — la source
+      -- de vérité reste le serveur.
+      CREATE TABLE IF NOT EXISTS etablissements (
+        id            TEXT PRIMARY KEY,
+        entreprise_id TEXT NOT NULL,
+        libelle       TEXT NOT NULL,
+        code          TEXT NOT NULL
+      );
+
+      ALTER TABLE points_de_vente ADD COLUMN etablissement_id TEXT;
+
+      -- Points de vente supplémentaires que CE terminal est autorisé à
+      -- facturer, au-delà de son point de vente principal (terminaux.point_de_vente_id,
+      -- inchangé). Sert le sélecteur rapide en caisse.
+      CREATE TABLE IF NOT EXISTS terminaux_points_de_vente (
+        terminal_id       TEXT NOT NULL,
+        point_de_vente_id TEXT NOT NULL,
+        PRIMARY KEY (terminal_id, point_de_vente_id)
+      );
+    `,
+  },
 ];
 
 export const VERSION_SCHEMA_CIBLE = MIGRATIONS[MIGRATIONS.length - 1]!.version;

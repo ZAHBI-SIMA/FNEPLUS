@@ -29,10 +29,18 @@ const ajoutUtilisateurSchema = z.object({
   // Rattache l'utilisateur à une seule boutique (droits différenciés) ;
   // absent, il voit toutes les boutiques de l'entreprise.
   pointDeVenteId: uuidSchema.optional(),
+  // Même principe, un niveau au-dessus : rattache à un seul établissement.
+  etablissementId: uuidSchema.optional(),
 });
 
 const pointDeVenteSchema = z.object({
   libelle: z.string().trim().min(2, 'Le nom de la boutique est obligatoire.').max(120),
+  adresse: z.string().trim().max(300).optional(),
+  etablissementId: uuidSchema.optional(),
+});
+
+const etablissementSchema = z.object({
+  libelle: z.string().trim().min(2, "Le nom de l'établissement est obligatoire.").max(120),
   adresse: z.string().trim().max(300).optional(),
 });
 
@@ -83,5 +91,22 @@ export class EntreprisesController {
   @Get('points-de-vente/resume')
   resumeBoutiques(@SessionCourante() session: Session) {
     return this.entreprises.resumeBoutiques(session.entrepriseId, session.pointDeVenteId);
+  }
+
+  // Ouvrir un nouvel établissement (site déclaré) engage l'entreprise au même
+  // titre qu'une boutique : seul le propriétaire en décide.
+  @Roles('PROPRIETAIRE')
+  @Post('etablissements')
+  @HttpCode(HttpStatus.CREATED)
+  creerEtablissement(
+    @SessionCourante() session: Session,
+    @Body(new ValidationZod(etablissementSchema)) corps: z.infer<typeof etablissementSchema>,
+  ) {
+    return this.entreprises.creerEtablissement(session.entrepriseId, corps);
+  }
+
+  @Get('etablissements')
+  listerEtablissements(@SessionCourante() session: Session) {
+    return this.entreprises.listerEtablissements(session.entrepriseId);
   }
 }

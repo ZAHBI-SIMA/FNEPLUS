@@ -352,6 +352,21 @@
   border-color: var(--fne-primaire-600);
 }
 
+/* Sélecteur rapide en caisse : choix du point de vente facturé, dans l'en-tête. */
+.fne-champ--pdv {
+  margin-top: var(--fne-esp-3);
+  max-width: 22rem;
+}
+
+.fne-champ--pdv select {
+  min-height: var(--fne-cible-tactile);
+  padding: var(--fne-esp-2) var(--fne-esp-3);
+  border: 2px solid var(--fne-bordure);
+  border-radius: var(--fne-rayon-md);
+  background: var(--fne-surface);
+  width: 100%;
+}
+
 /* Saisie d'un code : chiffres espacés, lisibles d'un coup d'œil. */
 .fne-champ--code {
   font-family: var(--fne-police-chiffres);

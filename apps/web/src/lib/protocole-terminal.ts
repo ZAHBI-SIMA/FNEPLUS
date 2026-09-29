@@ -42,7 +42,14 @@ export type ActionTerminal =
   | 'KPIS_ENTREPRISE'
   | 'RESUME_BOUTIQUES'
   | 'CREER_BOUTIQUE'
-  | 'RECHERCHER_FACTURE';
+  | 'RECHERCHER_FACTURE'
+  | 'POINTS_DE_VENTE_TERMINAL'
+  | 'ASSURER_RESERVE'
+  | 'LISTER_ETABLISSEMENTS'
+  | 'CREER_ETABLISSEMENT'
+  | 'LISTER_TERMINAUX'
+  | 'AUTORISER_TERMINAL_PDV'
+  | 'PDV_AUTORISES_TERMINAL';
 
 export interface RequeteTerminal {
   id: number;
@@ -117,6 +124,12 @@ export interface ChargeEmission {
   type?: TypeDocument;
   /** Facture créditée ou corrigée — obligatoire pour un avoir ou une rectificative. */
   factureOrigineId?: string;
+  /**
+   * Point de vente au nom duquel facturer cette vente précise (sélecteur
+   * rapide en caisse). Absent = point de vente principal du terminal, le
+   * comportement historique.
+   */
+  pointDeVenteId?: string;
 }
 
 /** Ligne du reçu, telle qu'affichée dans le tableau de la facture normalisée. */
@@ -145,6 +158,64 @@ export interface ResultatEmission {
   qrProvisoire: boolean;
   /** Durée mesurée dans le worker, hors coût de message. */
   dureeMs: number;
+}
+
+/** Point de vente qu'un terminal peut facturer (sélecteur rapide en caisse). */
+export interface PointDeVenteTerminal {
+  id: string;
+  libelle: string;
+  code: string;
+  /** Point de vente fixé à l'appairage — celui qui ne peut jamais être retiré. */
+  principal: boolean;
+}
+
+export type ResultatPointsDeVenteTerminal = PointDeVenteTerminal[];
+
+/**
+ * Demande de rechargement anticipé de la réserve d'un point de vente
+ * fraîchement sélectionné (sélecteur rapide en caisse), pendant que le
+ * réseau est là. Best-effort côté appelant : hors ligne, l'émission
+ * signalera elle-même l'absence de réserve le moment venu.
+ */
+export interface ChargeAssurerReserve {
+  pointDeVenteId: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Établissements (V2 — hiérarchie établissements → points de vente)    */
+/* ------------------------------------------------------------------ */
+
+export interface Etablissement {
+  id: string;
+  libelle: string;
+  code: string;
+  adresse: string | null;
+}
+
+export type ResultatEtablissements = Etablissement[];
+
+export interface ChargeCreerEtablissement {
+  libelle: string;
+  adresse?: string;
+}
+
+export interface TerminalResume {
+  id: string;
+  libelle: string;
+  pointDeVenteId: string;
+  pointDeVenteCode: string;
+  revoque: boolean;
+}
+
+export type ResultatTerminaux = TerminalResume[];
+
+export interface ChargeAutoriserTerminalPdv {
+  terminalId: string;
+  pointDeVenteId: string;
+}
+
+export interface ChargeListerPdvAutorisesTerminal {
+  terminalId: string;
 }
 
 export interface ChargeProduit {

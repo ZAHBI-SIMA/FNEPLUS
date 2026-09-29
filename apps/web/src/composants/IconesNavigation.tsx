@@ -113,6 +113,19 @@ export function IconeMultiBoutiques(props: ProprietesIcone) {
   );
 }
 
+export function IconeEtablissements(props: ProprietesIcone) {
+  return (
+    <Icone {...props}>
+      <path d="M5 20.5V6.3L12 3l7 3.3v14.2" />
+      <path d="M3 20.5h18" />
+      <rect x="8" y="8.4" width="2.4" height="2.4" />
+      <rect x="13.6" y="8.4" width="2.4" height="2.4" />
+      <rect x="8" y="13.2" width="2.4" height="2.4" />
+      <rect x="13.6" y="13.2" width="2.4" height="2.4" />
+    </Icone>
+  );
+}
+
 export function IconeAssistantWhatsApp(props: ProprietesIcone) {
   return (
     <Icone {...props}>

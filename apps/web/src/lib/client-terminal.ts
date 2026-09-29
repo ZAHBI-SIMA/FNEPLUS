@@ -10,19 +10,25 @@
 
 import type {
   ActionTerminal,
+  ChargeAssurerReserve,
+  ChargeAutoriserTerminalPdv,
   ChargeClient,
   ChargeConnexion,
   ChargeCreerBoutique,
+  ChargeCreerEtablissement,
   ChargeEmission,
   ChargeEncaissementEspeces,
   ChargeInscription,
+  ChargeListerPdvAutorisesTerminal,
   ChargePaiementMobile,
   ChargeProduit,
   ChargeRechercherFacture,
+  Etablissement,
   EtatReglementLocal,
   EtatTerminal,
   FactureOrigine,
   KpisEntreprise,
+  PointDeVenteTerminal,
   ReponseTerminal,
   RequeteTerminal,
   ResultatBoutiques,
@@ -30,10 +36,13 @@ import type {
   ResultatConnexion,
   ResultatCreerBoutique,
   ResultatEmission,
+  ResultatEtablissements,
   ResultatAnomalies,
   ResultatPaiementMobile,
+  ResultatPointsDeVenteTerminal,
   ResultatProduits,
   ResultatSynchronisation,
+  ResultatTerminaux,
   SituationARF,
 } from './protocole-terminal';
 
@@ -207,6 +216,34 @@ class ClientTerminal {
 
   rechercherFacture(charge: ChargeRechercherFacture): Promise<FactureOrigine> {
     return this.appeler<FactureOrigine>('RECHERCHER_FACTURE', charge);
+  }
+
+  pointsDeVenteTerminal(): Promise<ResultatPointsDeVenteTerminal> {
+    return this.appeler<ResultatPointsDeVenteTerminal>('POINTS_DE_VENTE_TERMINAL');
+  }
+
+  assurerReserve(charge: ChargeAssurerReserve): Promise<{ ok: boolean }> {
+    return this.appeler<{ ok: boolean }>('ASSURER_RESERVE', charge);
+  }
+
+  listerEtablissements(): Promise<ResultatEtablissements> {
+    return this.appeler<ResultatEtablissements>('LISTER_ETABLISSEMENTS');
+  }
+
+  creerEtablissement(charge: ChargeCreerEtablissement): Promise<Etablissement> {
+    return this.appeler<Etablissement>('CREER_ETABLISSEMENT', charge);
+  }
+
+  listerTerminaux(): Promise<ResultatTerminaux> {
+    return this.appeler<ResultatTerminaux>('LISTER_TERMINAUX');
+  }
+
+  autoriserTerminalPdv(charge: ChargeAutoriserTerminalPdv): Promise<{ ok: boolean }> {
+    return this.appeler<{ ok: boolean }>('AUTORISER_TERMINAL_PDV', charge);
+  }
+
+  pdvAutorisesTerminal(charge: ChargeListerPdvAutorisesTerminal): Promise<PointDeVenteTerminal[]> {
+    return this.appeler<PointDeVenteTerminal[]>('PDV_AUTORISES_TERMINAL', charge);
   }
 }
 

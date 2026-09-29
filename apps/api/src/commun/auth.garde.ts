@@ -34,6 +34,11 @@ export interface Session {
    * l'entreprise ; renseigné pour un caissier affecté à une boutique précise.
    */
   pointDeVenteId?: string;
+  /**
+   * Établissement auquel l'utilisateur est rattaché — même logique que
+   * `pointDeVenteId`, un niveau au-dessus (plusieurs sites déclarés).
+   */
+  etablissementId?: string;
 }
 
 export const CLE_PUBLIQUE = 'route_publique';

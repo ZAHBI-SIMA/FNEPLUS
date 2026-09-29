@@ -767,3 +767,49 @@ corrige l'avenir, elle ne réécrit pas ce qu'un jour antérieur a déjà compt�
 recalculer rétroactivement les totaux d'un jour passé exigerait de savoir
 quelle facture chaque rectificative remplace _dans le calcul du chiffre
 d'affaires_, une portée plus large que ce sprint.
+
+---
+
+## D-030 — Établissements et sélecteur rapide en caisse : étendre la numérotation sans jamais toucher au principal
+
+**Date :** V2 — chantier « élargissement des comptes »
+
+**Constat.** `terminaux.point_de_vente_id` est une liaison stricte, fixée à
+l'appairage, dont dérivent à la fois le préfixe de numérotation
+(`${code}-${année}`) et la portée d'allocation des plages (`MAX(fin)` filtré
+sur ce point de vente). C'est exactement ce qui garantit qu'aucun numéro
+n'est jamais servi deux fois — donc le point précis à ne pas fragiliser en
+ajoutant « choisir son point de vente en caisse ».
+
+**Décision — additif, jamais destructif.** Le point de vente principal d'un
+terminal reste inchangé, intouchable par cette fonctionnalité. Une nouvelle
+table `terminaux_points_de_vente` accorde des autorisations *en plus*,
+décidées explicitement par le propriétaire (`POST
+/terminaux/:id/points-de-vente-autorises`). Chaque point de vente autorisé
+obtient sa **propre** plage de numéros, allouée indépendamment
+(`plages_numeros` portait déjà `point_de_vente_id` depuis le socle — la
+table n'avait simplement jamais servi qu'un seul point de vente par
+terminal). Un terminal qui n'utilise jamais cette fonctionnalité a un
+comportement strictement identique à avant : zéro régression possible sur la
+garantie de séquence.
+
+**Décision — établissement, un niveau au-dessus, opt-in.** `etablissements`
+(site physique déclaré) et `points_de_vente.etablissement_id` suivent le même
+principe que `point_de_vente_id` sur `utilisateurs` (D-028) : rattachement
+nullable, un compte non rattaché voit tout. Contrairement au point de vente,
+aucun établissement n'est créé automatiquement à l'inscription — seules les
+entreprises antérieures à cette migration reçoivent un « Établissement
+principal » de repli (migration 008), pour ne laisser aucun point de vente
+orphelin. Une entreprise inscrite après coup n'a d'établissement que si son
+propriétaire en déclare un : ce niveau reste facultatif tant qu'un seul site
+suffit.
+
+**Défense en profondeur, pas en un seul endroit.** Le serveur reste seul
+juge : `allouerDansTransaction` vérifie l'autorisation avant toute allocation
+(409 `POINT_DE_VENTE_NON_AUTORISE` sinon), RLS empêche qu'un propriétaire
+autorise un terminal d'une autre entreprise (testé). Côté terminal, le
+sélecteur rapide précharge la réserve dès qu'un point de vente est choisi
+(pendant que le réseau est là) plutôt que d'attendre l'échec à l'émission —
+mais si ce préchargement échoue ou est sauté (hors ligne), l'émission le
+signale clairement plutôt que de se bloquer en silence, dans le même esprit
+que « ce que le terminal ne peut pas réparer, il le montre ».

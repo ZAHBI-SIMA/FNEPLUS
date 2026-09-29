@@ -42,6 +42,13 @@ export interface EntrepriseComplete {
   pointsDeVente: { id: string; libelle: string; code: string; adresse: string | null }[];
 }
 
+export interface Etablissement {
+  id: string;
+  libelle: string;
+  code: string;
+  adresse: string | null;
+}
+
 @Injectable()
 export class EntreprisesService {
   constructor(@Inject(BaseDeDonnees) private readonly bdd: BaseDeDonnees) {}
@@ -145,7 +152,13 @@ export class EntreprisesService {
 
   async ajouterUtilisateur(
     entrepriseId: string,
-    donnees: { telephone: string; nom: string; role: RoleUtilisateur; pointDeVenteId?: string },
+    donnees: {
+      telephone: string;
+      nom: string;
+      role: RoleUtilisateur;
+      pointDeVenteId?: string;
+      etablissementId?: string;
+    },
   ): Promise<{ utilisateurId: string }> {
     const utilisateurId = uuidv7();
 
@@ -162,10 +175,10 @@ export class EntreprisesService {
     }
 
     await this.bdd.avecTenant(entrepriseId, async (tx) => {
-      // La boutique doit appartenir à cette entreprise : sous contexte tenant,
-      // une boutique d'une autre entreprise ne renvoie simplement aucune ligne
-      // (RLS), donc l'affectation échoue proprement plutôt que de rattacher
-      // silencieusement l'utilisateur à la mauvaise boutique.
+      // La boutique et l'établissement doivent appartenir à cette entreprise :
+      // sous contexte tenant, une ligne d'une autre entreprise ne renvoie
+      // simplement rien (RLS), donc l'affectation échoue proprement plutôt que
+      // de rattacher silencieusement l'utilisateur à la mauvaise donnée.
       if (donnees.pointDeVenteId) {
         const [pdv] = await tx`SELECT id FROM points_de_vente WHERE id = ${donnees.pointDeVenteId}`;
         if (!pdv) {
@@ -175,11 +188,23 @@ export class EntreprisesService {
           });
         }
       }
+      if (donnees.etablissementId) {
+        const [etb] = await tx`SELECT id FROM etablissements WHERE id = ${donnees.etablissementId}`;
+        if (!etb) {
+          throw new NotFoundException({
+            code: 'ETABLISSEMENT_INTROUVABLE',
+            message: 'Établissement introuvable.',
+          });
+        }
+      }
 
       await tx`
-        INSERT INTO utilisateurs (id, entreprise_id, telephone, nom, role, point_de_vente_id)
+        INSERT INTO utilisateurs (
+          id, entreprise_id, telephone, nom, role, point_de_vente_id, etablissement_id
+        )
         VALUES (${utilisateurId}, ${entrepriseId}, ${donnees.telephone},
-                ${donnees.nom}, ${donnees.role}, ${donnees.pointDeVenteId ?? null})
+                ${donnees.nom}, ${donnees.role}, ${donnees.pointDeVenteId ?? null},
+                ${donnees.etablissementId ?? null})
       `;
     });
 
@@ -190,25 +215,84 @@ export class EntreprisesService {
    * Ajoute une boutique. La première existe déjà à l'inscription ; celle-ci
    * en crée une deuxième, une troisième, etc. — le préfixe de numérotation
    * (`PDVnn`) découle directement du rang de création.
+   *
+   * Rattachée à un établissement : celui donné, ou à défaut le plus ancien de
+   * l'entreprise (le repli créé par la migration 008 pour toute entreprise
+   * antérieure à la notion d'établissement).
    */
   async creerPointDeVente(
     entrepriseId: string,
-    donnees: { libelle: string; adresse?: string },
+    donnees: { libelle: string; adresse?: string; etablissementId?: string },
   ): Promise<{ id: string; libelle: string; code: string }> {
     const id = uuidv7();
 
     return this.bdd.avecTenant(entrepriseId, async (tx) => {
+      let etablissementId = donnees.etablissementId ?? null;
+      if (etablissementId) {
+        const [etb] = await tx`SELECT id FROM etablissements WHERE id = ${etablissementId}`;
+        if (!etb) {
+          throw new NotFoundException({
+            code: 'ETABLISSEMENT_INTROUVABLE',
+            message: 'Établissement introuvable.',
+          });
+        }
+      } else {
+        const [defaut] = await tx<{ id: string }[]>`
+          SELECT id FROM etablissements WHERE entreprise_id = ${entrepriseId}
+           ORDER BY cree_le ASC LIMIT 1
+        `;
+        etablissementId = defaut?.id ?? null;
+      }
+
       const [ligne] = await tx<{ n: number }[]>`
         SELECT COUNT(*)::int AS n FROM points_de_vente WHERE entreprise_id = ${entrepriseId}
       `;
       const code = `PDV${String((ligne?.n ?? 0) + 1).padStart(2, '0')}`;
 
       await tx`
-        INSERT INTO points_de_vente (id, entreprise_id, libelle, code, adresse)
-        VALUES (${id}, ${entrepriseId}, ${donnees.libelle}, ${code}, ${donnees.adresse ?? null})
+        INSERT INTO points_de_vente (id, entreprise_id, libelle, code, adresse, etablissement_id)
+        VALUES (${id}, ${entrepriseId}, ${donnees.libelle}, ${code}, ${donnees.adresse ?? null},
+                ${etablissementId})
       `;
 
       return { id, libelle: donnees.libelle, code };
+    });
+  }
+
+  /**
+   * Ajoute un établissement (un site physique déclaré). Le premier est créé
+   * automatiquement par la migration 008 pour toute entreprise déjà inscrite ;
+   * celui-ci en ajoute un deuxième, une troisième caisse ouvrant dans une
+   * autre ville par exemple.
+   */
+  async creerEtablissement(
+    entrepriseId: string,
+    donnees: { libelle: string; adresse?: string },
+  ): Promise<Etablissement> {
+    const id = uuidv7();
+
+    return this.bdd.avecTenant(entrepriseId, async (tx) => {
+      const [ligne] = await tx<{ n: number }[]>`
+        SELECT COUNT(*)::int AS n FROM etablissements WHERE entreprise_id = ${entrepriseId}
+      `;
+      const code = `ETB${String((ligne?.n ?? 0) + 1).padStart(2, '0')}`;
+
+      await tx`
+        INSERT INTO etablissements (id, entreprise_id, libelle, code, adresse)
+        VALUES (${id}, ${entrepriseId}, ${donnees.libelle}, ${code}, ${donnees.adresse ?? null})
+      `;
+
+      return { id, libelle: donnees.libelle, code, adresse: donnees.adresse ?? null };
+    });
+  }
+
+  async listerEtablissements(entrepriseId: string): Promise<Etablissement[]> {
+    return this.bdd.avecTenant(entrepriseId, async (tx) => {
+      const lignes = await tx<
+        { id: string; libelle: string; code: string; adresse: string | null }[]
+      >`SELECT id, libelle, code, adresse FROM etablissements
+         WHERE entreprise_id = ${entrepriseId} ORDER BY code`;
+      return lignes;
     });
   }
 

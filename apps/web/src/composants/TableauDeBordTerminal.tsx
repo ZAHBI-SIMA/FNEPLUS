@@ -24,6 +24,7 @@ import { EcranAVerifier } from './EcranAVerifier';
 import { EcranRapports } from './EcranRapports';
 import { EcranAide } from './EcranAide';
 import { EcranBoutiques } from './EcranBoutiques';
+import { EcranEtablissements } from './EcranEtablissements';
 import { EcranAvoir } from './EcranAvoir';
 import { TuileARF } from './TuileARF';
 import {
@@ -34,6 +35,7 @@ import {
   IconeAVerifier,
   IconeAvoir,
   IconeClients,
+  IconeEtablissements,
   IconeFinancement,
   IconeJournal,
   IconeMultiBoutiques,
@@ -51,6 +53,7 @@ type Onglet =
   | 'A_VERIFIER'
   | 'RAPPORTS'
   | 'BOUTIQUES'
+  | 'ETABLISSEMENTS'
   | 'AIDE';
 type ComposantIcone = typeof IconeVente;
 
@@ -70,6 +73,7 @@ const ONGLETS: [Onglet, (etat: EtatTerminal) => string, ComposantIcone][] = [
   ['A_VERIFIER', (e) => `À vérifier (${e.nombreAnomalies})`, IconeAVerifier],
   ['RAPPORTS', () => 'Rapports et KPI', IconeRapports],
   ['BOUTIQUES', () => 'Boutiques', IconeMultiBoutiques],
+  ['ETABLISSEMENTS', () => 'Établissements', IconeEtablissements],
   ['AIDE', () => 'Aide et support', IconeAide],
 ];
 
@@ -279,7 +283,11 @@ export function TableauDeBordTerminal() {
         >
           <div className="fne-barre-laterale__groupe">
             <p className="fne-barre-laterale__titre">Fonctionnalités</p>
-            {ONGLETS.filter(([cle]) => cle !== 'A_VERIFIER' || etat.nombreAnomalies > 0).map(
+            {ONGLETS.filter(
+              ([cle]) =>
+                (cle !== 'A_VERIFIER' || etat.nombreAnomalies > 0) &&
+                (cle !== 'ETABLISSEMENTS' || session.role === 'PROPRIETAIRE'),
+            ).map(
               ([cle, libelle, Icone]) => (
                 <button
                   key={cle}
@@ -353,6 +361,8 @@ export function TableauDeBordTerminal() {
             <EcranRapports />
           ) : onglet === 'BOUTIQUES' ? (
             <EcranBoutiques peutCreer={session.role === 'PROPRIETAIRE'} />
+          ) : onglet === 'ETABLISSEMENTS' ? (
+            <EcranEtablissements />
           ) : onglet === 'AIDE' ? (
             <EcranAide />
           ) : (

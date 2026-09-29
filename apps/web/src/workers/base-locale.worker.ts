@@ -48,19 +48,25 @@ import {
   libelleAppareilParDefaut,
   ouvrirSessionTerminal,
   referentielsLocaux,
+  synchroniserPointsDeVenteAutorises,
 } from '@/lib/onboarding';
 import { effacerSession, lireSession, type SessionTerminal } from '@/lib/session-locale';
 import { synchroniser } from '@/lib/synchronisation';
 import { appelerApi, ErreurApi } from '@/lib/api-client';
 import type {
+  ChargeAssurerReserve,
+  ChargeAutoriserTerminalPdv,
   ChargeClient,
   ChargeCreerBoutique,
+  ChargeCreerEtablissement,
+  ChargeListerPdvAutorisesTerminal,
   ChargeProduit,
   ChargeConnexion,
   ChargeEmission,
   ChargePaiementMobile,
   ChargeInscription,
   ChargeRechercherFacture,
+  Etablissement,
   EtatTerminal,
   FactureOrigine,
   KpisEntreprise,
@@ -70,7 +76,10 @@ import type {
   ResultatConnexion,
   ResultatCreerBoutique,
   ResultatEmission,
+  ResultatEtablissements,
   ResultatPaiementMobile,
+  ResultatTerminaux,
+  PointDeVenteTerminal,
   SituationARF,
 } from '@/lib/protocole-terminal';
 
@@ -119,7 +128,7 @@ async function etatTerminal(): Promise<EtatTerminal> {
     };
   }
 
-  const plage = plageActive(base, session.terminalId);
+  const plage = plageActive(base, session.terminalId, session.pointDeVenteId);
 
   return {
     infos: base.infos,
@@ -246,7 +255,10 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
         {
           entrepriseId: session.entrepriseId,
           ncc: session.ncc,
-          pointDeVenteId: session.pointDeVenteId,
+          // Sélecteur rapide en caisse : une vente peut être facturée au nom
+          // d'un autre point de vente que le principal, s'il a été autorisé
+          // pour ce terminal (voir POINTS_DE_VENTE_TERMINAL).
+          pointDeVenteId: charge.pointDeVenteId ?? session.pointDeVenteId,
           terminalId: session.terminalId,
           regimeFiscal: session.regimeFiscal,
           hlc: horlogeDe(session).tick(),
@@ -377,12 +389,20 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
 
       // Recharger la réserve tant que le réseau est disponible, plutôt que
       // d'attendre qu'elle soit vide alors que l'appareil sera peut-être hors
-      // ligne à ce moment-là.
+      // ligne à ce moment-là. Même occasion pour rafraîchir les points de
+      // vente que ce terminal est autorisé à facturer (sélecteur rapide en
+      // caisse) : une autorisation accordée par le propriétaire après la
+      // connexion doit apparaître sans que le caissier doive se reconnecter.
       if (resultat.statut === 'REUSSIE') {
         try {
           await assurerReserveNumeros(base, session);
         } catch (erreur) {
           console.warn('[worker] rechargement de plage impossible', erreur);
+        }
+        try {
+          await synchroniserPointsDeVenteAutorises(base, session);
+        } catch (erreur) {
+          console.warn('[worker] synchronisation des points de vente autorisés impossible', erreur);
         }
       }
 
@@ -514,6 +534,78 @@ async function traiter(requete: RequeteTerminal): Promise<unknown> {
         totalTTC: facture.totalTTC,
         lignes: facture.lignes,
       };
+      return resultat;
+    }
+
+    case 'ASSURER_RESERVE': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      const { pointDeVenteId } = requete.charge as ChargeAssurerReserve;
+      await assurerReserveNumeros(base, session, pointDeVenteId);
+      return { ok: true };
+    }
+
+    case 'LISTER_ETABLISSEMENTS': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      return appelerApi<ResultatEtablissements>('/api/v1/entreprises/etablissements', {
+        jeton: session.jeton,
+      });
+    }
+
+    case 'CREER_ETABLISSEMENT': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      const charge = requete.charge as ChargeCreerEtablissement;
+      return appelerApi<Etablissement>('/api/v1/entreprises/etablissements', {
+        methode: 'POST',
+        jeton: session.jeton,
+        corps: charge,
+      });
+    }
+
+    case 'LISTER_TERMINAUX': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      return appelerApi<ResultatTerminaux>('/api/v1/terminaux', { jeton: session.jeton });
+    }
+
+    case 'AUTORISER_TERMINAL_PDV': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      const { terminalId, pointDeVenteId } = requete.charge as ChargeAutoriserTerminalPdv;
+      await appelerApi(`/api/v1/terminaux/${terminalId}/points-de-vente-autorises`, {
+        methode: 'POST',
+        jeton: session.jeton,
+        corps: { pointDeVenteId },
+      });
+      return { ok: true };
+    }
+
+    case 'PDV_AUTORISES_TERMINAL': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      const { terminalId } = requete.charge as ChargeListerPdvAutorisesTerminal;
+      return appelerApi<PointDeVenteTerminal[]>(
+        `/api/v1/terminaux/${terminalId}/points-de-vente-autorises`,
+        { jeton: session.jeton },
+      );
+    }
+
+    case 'POINTS_DE_VENTE_TERMINAL': {
+      const session = lireSession(base);
+      sessionRequise(session);
+      const lignes = base.interroger<{ id: string; libelle: string; code: string }>(
+        `SELECT id, libelle, code FROM points_de_vente
+          WHERE id = ?
+             OR id IN (SELECT point_de_vente_id FROM terminaux_points_de_vente WHERE terminal_id = ?)
+          ORDER BY code`,
+        [session.pointDeVenteId, session.terminalId],
+      );
+      const resultat: PointDeVenteTerminal[] = lignes.map((l) => ({
+        ...l,
+        principal: l.id === session.pointDeVenteId,
+      }));
       return resultat;
     }
 
